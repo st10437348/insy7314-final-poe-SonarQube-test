@@ -1,0 +1,614 @@
+{
+  "info": {
+    "_postman_id": "5a8247a6-1353-4814-a9e5-17cc1b54c75c",
+    "name": "HustleHub Part 1 - HTTPS and Authentication",
+    "description": "Repeatable HTTPS API checks for registration, login, input validation, controlled errors, and JWT route protection. Run the requests in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "57992275",
+    "_collection_link": "https://go.postman.co/collection/57992275-5a8247a6-1353-4814-a9e5-17cc1b54c75c?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. HTTPS health check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Request uses HTTPS', () => pm.expect(pm.request.url.protocol).to.eql('https'));",
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('API is running', () => pm.expect(pm.response.json().message).to.eql('API Running'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Register valid user",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.collectionVariables.set('testEmail', 'postman.' + Date.now() + '@example.com');"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const response = pm.response.json();",
+              "pm.test('Registration response is consistent', () => pm.expect(response.message).to.eql('User registered successfully'));",
+              "pm.test('Password is not returned', () => { pm.expect(pm.response.text()).not.to.include(pm.collectionVariables.get('testPassword')); pm.expect(response.user).not.to.have.property('password'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"role\": \"Client\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Reject duplicate registration",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 409', () => pm.response.to.have.status(409));\npm.test('Duplicate response is controlled', () => pm.expect(pm.response.json().message).to.eql('User with this email already exists.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\",\n  \"role\": \"Client\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Login valid user and save JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const response = pm.response.json();",
+              "pm.test('JWT is returned', () => pm.expect(response.token).to.be.a('string').and.not.empty);",
+              "pm.test('Password is not returned', () => pm.expect(response.user).not.to.have.property('password'));",
+              "pm.collectionVariables.set('token', response.token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Access protected route with JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));\npm.test('Response is JSON', () => pm.response.to.be.json);\nconst users = pm.response.json();\npm.test(\"Passwords are not exposed\", () => {\n  users.forEach((user) => {\n    pm.expect(user).not.to.have.property(\"password\");\n  });\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "disabled": true
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Reject missing registration fields",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+              "const response = pm.response.json();",
+              "const paths = response.errors.map(error => error.path);",
+              "pm.test('Controlled validation response', () => pm.expect(response.message).to.eql('Validation failed.'));",
+              "pm.test('All required fields are reported', () => { pm.expect(paths).to.include('name'); pm.expect(paths).to.include('email'); pm.expect(paths).to.include('password'); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Reject invalid registration values",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+              "pm.test('Response identifies validation failure', () => pm.expect(pm.response.json().message).to.eql('Validation failed.'));",
+              "pm.test('Rejected password is not echoed', () => pm.expect(pm.response.text()).not.to.include('weak'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"A\",\n  \"email\": \"not-an-email\",\n  \"password\": \"weak\",\n  \"role\": \"Unknown\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Password policy validation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const response = pm.response.json();\nconst rule = pm.variables.get(\"passwordRule\");\nconst submittedPassword = pm.variables.get(\"invalidPassword\");\n\npm.test(`${rule}: status is 400`, () => {\n  pm.response.to.have.status(400);\n});\n\npm.test(`${rule}: password validation error returned`, () => {\n  pm.expect(response.message).to.eql(\"Validation failed.\");\n\n  const passwordError = response.errors.find(\n    (error) => error.path === \"password\"\n  );\n\n  pm.expect(passwordError).to.exist;\n});\n\npm.test(`${rule}: password is not exposed`, () => {\n  pm.expect(pm.response.text()).not.to.include(submittedPassword);\n});"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const passwordCases = [\r\n  {\r\n    password: \"password1!\",\r\n    rule: \"missing uppercase letter\"\r\n  },\r\n  {\r\n    password: \"PASSWORD1!\",\r\n    rule: \"missing lowercase letter\"\r\n  },\r\n  {\r\n    password: \"Password!\",\r\n    rule: \"missing number\"\r\n  },\r\n  {\r\n    password: \"Password1\",\r\n    rule: \"missing special character\"\r\n  },\r\n  {\r\n    password: \"Pass1!\",\r\n    rule: \"too short\"\r\n  }\r\n];\r\n\r\nconst iteration = pm.info.iteration || 0;\r\nconst currentCase = passwordCases[iteration % passwordCases.length];\r\n\r\npm.variables.set(\"invalidPassword\", currentCase.password);\r\npm.variables.set(\"passwordRule\", currentCase.rule);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Password Test\",\n  \"email\": \"password.validation@example.com\",\n  \"password\": \"{{invalidPassword}}\",\n  \"role\": \"Client\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. Reject invalid login credentials",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', () => pm.response.to.have.status(401));\npm.test('Response does not reveal which credential failed', () => pm.expect(pm.response.json().message).to.eql('Invalid email or password.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"WrongPassword1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "10. Reject missing login fields",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));\npm.test('Controlled validation response', () => pm.expect(pm.response.json().message).to.eql('Validation failed.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "11. Reject protected route without JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', () => pm.response.to.have.status(401));\npm.test('Response is controlled', () => pm.expect(pm.response.json().message).to.eql('Not authorized, no token provided.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "12. Reject protected route with invalid JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 401', () => pm.response.to.have.status(401));\npm.test('Response is controlled', () => pm.expect(pm.response.json().message).to.eql('Not authorized, invalid or expired token.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "not-a-valid-token",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{bearer_token_130q}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "13. Reject malformed JSON",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.to.have.status(400));\npm.test('Parser details are hidden', () => pm.expect(pm.response.json().message).to.eql('The request body contains invalid JSON.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{not-valid-json",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "14. Reject unknown route",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 404', () => pm.response.to.have.status(404));\npm.test('Response is controlled', () => pm.expect(pm.response.json().message).to.eql('Route not found.'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/does-not-exist",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "does-not-exist"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:5000"
+    },
+    {
+      "key": "testEmail",
+      "value": "postman.user@example.com"
+    },
+    {
+      "key": "testPassword",
+      "value": "SecurePass1!"
+    },
+    {
+      "key": "token",
+      "secret": true
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "info": {
+    "_postman_id": "24355faa-54fe-405e-ac58-577b350846ca",
+    "name": "HustleHub Part 2 - Rate Limit Demo",
+    "description": "Run with: newman run <this file> -n 35 --insecure\n\nSends repeated failed logins. The login limiter allows 30 requests per 15 minutes per IP, then returns 429 with a clear message. Run this LAST (or restart the server afterwards), because it locks login/register for 15 minutes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Repeated failed login attempt",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const code = pm.response.code;",
+              "pm.test(\"Request is either rejected (401) or rate limited (429)\", () => pm.expect([401, 429]).to.include(code));",
+              "pm.test(\"RateLimit headers tell the client the limit and remaining requests\", () => {",
+              "    pm.expect(pm.response.headers.get(\"RateLimit-Policy\")).to.include(\"30;w=900\");",
+              "    pm.expect(pm.response.headers.has(\"RateLimit\")).to.be.true;",
+              "});",
+              "if (code === 429) {",
+              "    pm.collectionVariables.set(\"limited\", \"yes\");",
+              "    pm.test(\"429 response has a meaningful message\", () =>",
+              "        pm.expect(pm.response.json().message).to.eql(\"Too many authentication attempts. Try again later.\"));",
+              "}",
+              "if (pm.info.iteration === pm.info.iterationCount - 1) {",
+              "    pm.test(\"Login was rate limited after too many attempts\", () => pm.expect(pm.collectionVariables.get(\"limited\")).to.eql(\"yes\"));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"attacker@hustlehub.test\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:5000"
+    },
+    {
+      "key": "limited",
+      "value": "no"
+    }
+  ]
+}

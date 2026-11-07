@@ -1,0 +1,25 @@
+{
+  "scripts": {
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "dev": "npm run generate-cert && concurrently \"npm run server\" \"npm run client\"",
+    "generate-cert": "npm run generate-cert --prefix server",
+    "test": "npm test --prefix server",
+    "test:server": "npm test --prefix server",
+    "test:client": "npm test --prefix client",
+    "test:all": "npm run test:server && npm run test:client",
+    "test:api": "newman run \"../PostmanCollection/HustleHub Part 2 - Secure Marketplace API.postman_collection.json\" --insecure -r cli,htmlextra --reporter-htmlextra-export ../NewmanReports/newman-report.html --reporter-htmlextra-title \"HustleHub Part 2 - Newman Report\"",
+    "test:ratelimit": "newman run \"../PostmanCollection/HustleHub Part 2 - Rate Limit Demo.postman_collection.json\" -n 35 --insecure -r cli,htmlextra --reporter-htmlextra-export ../NewmanReports/newman-ratelimit-report.html",
+    "seed": "npm run seed --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "migrate-mongo": "^14.0.7",
+    "newman": "^6.2.3",
+    "newman-reporter-htmlextra": "^1.23.1"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.4",
+    "node.js": "^0.0.1-security"
+  }
+}

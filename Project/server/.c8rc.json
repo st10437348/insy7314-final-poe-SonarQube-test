@@ -1,0 +1,16 @@
+{
+  "all": true,
+  "include": [
+    "app.js",
+    "server.js",
+    "config/**/*.js",
+    "controllers/**/*.js",
+    "middleware/**/*.js",
+    "models/**/*.js",
+    "routes/**/*.js",
+    "services/**/*.js"
+  ],
+  "exclude": ["test/**", "scripts/**"],
+  "reporter": ["text", "lcov"],
+  "reports-dir": "coverage"
+}

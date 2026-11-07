@@ -1,0 +1,31 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "Backend API",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "generate-cert": "node scripts/generateCertificate.js",
+    "seed": "node scripts/seed.js",
+    "upgrade-local-data": "node scripts/upgradeLocalData.js",
+    "test": "node scripts/generateCertificate.js && node --test",
+    "test:coverage": "node scripts/generateCertificate.js && c8 node --test && node scripts/prepareSonarCoverage.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.7.1",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.24.5"
+  },
+  "devDependencies": {
+    "c8": "^12.0.0"
+  }
+}

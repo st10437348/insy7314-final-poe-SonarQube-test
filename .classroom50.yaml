@@ -1,0 +1,7 @@
+schema: "classroom50/repo-config/v1"
+classroom: "insy7314-2026"
+assignment: "insy7314-poe-classroom"
+owner:
+  username: "st10437348"
+  id: 166798566
+  accepted_at: "2026-08-26T10:31:48Z"

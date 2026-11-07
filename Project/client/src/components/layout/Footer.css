@@ -1,0 +1,16 @@
+.footer {
+    background: #0b0c10 url("/geometric-pattern.svg") center / 640px 220px repeat;
+    padding: 25px 20px;
+}
+
+.footer-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.footer p {
+    margin: 0;
+    color: white;
+    font-size: 20px;
+}

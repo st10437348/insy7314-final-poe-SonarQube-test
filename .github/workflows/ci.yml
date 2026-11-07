@@ -1,0 +1,178 @@
+name: CI and static analysis
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Project/server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Project/server/package-lock.json
+      - run: npm ci
+      - name: Backend tests
+        run: npm test
+      - name: Backend syntax check
+        run: find . -path './node_modules' -prune -o -name '*.js' -print -exec node --check {} \;
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Project/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: Project/client/package-lock.json
+      - run: npm ci
+      - name: ESLint static analysis
+        run: npm run lint
+      - name: Frontend tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+  api-integration:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      NODE_ENV: development
+      MONGO_DB_DEV: hustlehub_ci
+      MONGO_DB_PROD: hustlehub_production
+      CLIENT_ORIGIN: https://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            Project/package-lock.json
+            Project/server/package-lock.json
+      - name: Configure isolated test service
+        run: |
+          echo "MONGO_URI=mongodb://127.0.0.1:${{ job.services.mongo.ports[27017] }}" >> "$GITHUB_ENV"
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - run: npm ci
+        working-directory: Project
+      - run: npm ci
+        working-directory: Project/server
+      - run: npm run generate-cert
+        working-directory: Project/server
+      - name: Seed isolated CI database
+        run: npm run seed
+        working-directory: Project/server
+      - name: Start API and wait for HTTPS health check
+        run: |
+          npm start --prefix Project/server > "$RUNNER_TEMP/api.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl --silent --fail --insecure https://localhost:5000/api/test; then exit 0; fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/api.log"
+          exit 1
+      - name: Newman API integration tests
+        run: |
+          mkdir -p ../NewmanReports
+          npm run test:api
+        working-directory: Project
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-report
+          path: NewmanReports/newman-report.html
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: api-log
+          path: ${{ runner.temp }}/api.log
+
+  codeql:
+    name: CodeQL JavaScript analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+
+  sonarqube:
+    name: SonarQube Cloud quality gate
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            Project/server/package-lock.json
+            Project/client/package-lock.json
+      - run: npm ci --prefix Project/server
+      - run: npm ci --prefix Project/client
+      - name: Generate backend LCOV coverage
+        run: npm run test:coverage --prefix Project/server
+      - name: Check SonarQube Cloud configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ] || [ -z "$SONAR_PROJECT_KEY" ]; then
+            echo "::error::Set SONAR_TOKEN as a repository secret and SONAR_ORGANIZATION and SONAR_PROJECT_KEY as repository variables. See docs/Part3-Static-Analysis.md."
+            exit 1
+          fi
+      - name: SonarQube analysis and quality gate
+        uses: SonarSource/sonarqube-scan-action@v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true
+
+  ci-result:
+    if: always()
+    needs: [backend, frontend, api-integration, codeql, sonarqube]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          test "$RESULTS" = "success success success success success"
