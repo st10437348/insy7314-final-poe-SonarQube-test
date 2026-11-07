@@ -1,3 +1,5 @@
+const { randomUUID } = require("node:crypto");
+
 // Return a predictable response for URLs that do not match an API route.
 const notFound = (req, res) => {
   res.status(404).json({ message: "Route not found." });
@@ -25,8 +27,10 @@ const errorHandler = (error, req, res, next) => {
     return res.status(409).json({ message: "A record with those details already exists." });
   }
 
-  // Record the event without placing credentials or connection strings in logs.
-  console.error(`${req.method} ${req.originalUrl}: unexpected ${error.name || "Error"}`);
+  // Keep client-controlled URLs and error names out of logs; use this ID to match reports.
+  const incidentId = randomUUID();
+  console.error("Unexpected server error", { incidentId });
+  res.set("X-Incident-Id", incidentId);
   return res.status(500).json({ message: "An unexpected server error occurred." });
 };
 
