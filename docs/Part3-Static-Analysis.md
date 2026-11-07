@@ -16,7 +16,7 @@ These are local results. No SonarQube Cloud scan or quality gate result is claim
 3. Generate a SonarQube token with Execute Analysis permission. Add it as the GitHub Actions repository secret `SONAR_TOKEN`. Do not put the token in source control, screenshots, or chat. The workflow uses `https://sonarcloud.io` by default; `SONAR_HOST_URL` is an optional repository secret for a different reachable SonarQube host.
 4. Push the changes. Inspect **Actions → CI and static analysis → SonarQube Cloud quality gate** and the SonarQube project dashboard. Review the issues and quality gate before capturing submission evidence.
 
-If the Classroom50 organization does not allow installing the SonarQube GitHub app or setting repository secrets, use a fork that retains the commit history and document its URL in the README. A GitHub-hosted runner cannot reach a server hosted only on a laptop.
+The Classroom50 repository could not be forked, so this SonarQube test repository is a standalone copy. Record both repository URLs in the submission README and explain that the copy does not preserve the original commit history. A GitHub-hosted runner cannot reach a server hosted only on a laptop.
 
 ## How the pipeline works
 
@@ -24,6 +24,8 @@ The SonarQube job waits for successful backend and frontend checks, installs dep
 
 The job fails with a configuration error until `SONAR_TOKEN`, `SONAR_ORGANIZATION`, and `SONAR_PROJECT_KEY` are set. It also waits for the SonarQube quality gate and fails if the gate fails. A successful scanner run is therefore not presented as a passing quality gate unless the gate actually passes.
 
-For submission evidence, capture the GitHub Actions job results, SonarQube project overview, quality gate, issue list, and coverage result. Record findings by type: bugs, vulnerabilities, security hotspots, code smells, and duplications. Review each finding and document the fix or explanation. CodeQL findings appear separately in GitHub **Security → Code scanning**. The Newman HTML report is available as a CI artifact.
+For submission evidence, capture the GitHub Actions job results, SonarQube project overview, quality gate, issue list, and coverage result. Record findings by type: bugs, vulnerabilities, security hotspots, code smells, and duplications. Review each finding and document the fix or explanation. The Newman HTML report is available as a CI artifact.
+
+The initial run in the copied repository failed because SonarQube Cloud's Automatic Analysis was enabled alongside the CI scan. Disable Automatic Analysis at the project level under **Administration → Analysis Method**, then rerun CI. CodeQL was an optional additional scanner; it was removed because GitHub code scanning is not enabled in this repository and SonarQube provides the required static analysis.
 
 References: [SonarQube Cloud CI-based analysis](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/overview-of-integrated-cis) and [JavaScript/TypeScript coverage](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/test-coverage/javascript-typescript-test-coverage).

@@ -67,7 +67,7 @@ Part 3 was split by marking criterion
 
 
 | CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
-| Static Code Analysis (10) | `Alexandro Ornelas` | SonarQube Cloud quality gate, ESLint, backend syntax check and CodeQL | [16](#16-part-3-income-ci-and-static-analysis) |
+| Static Code Analysis (10) | `Alexandro Ornelas` | SonarQube Cloud quality gate, ESLint and backend syntax check | [16](#16-part-3-income-ci-and-static-analysis) |
 
 | Logging (10) |  `Caleb Forbes` | work to be noted | [11](#11-testing) |
 | 2 Security Features (15) |  `Caleb Forbes` | work to be noted | [11](#11-testing) |
@@ -846,10 +846,10 @@ New simulated transactions no longer deduct a flat 15% tax. Existing transaction
 
 ### CI/CD pipeline
 
-`.github/workflows/ci.yml` runs on pushes, pull requests and manual dispatch. Its required jobs install dependencies with `npm ci`, run backend tests and syntax checks, run frontend ESLint and Vitest, build the production frontend, run the Postman/Newman API collection against a temporary MongoDB service and HTTPS API, and analyze code with CodeQL and SonarQube Cloud. The Newman HTML report is uploaded as a workflow artifact; API logs are uploaded if the integration job fails. A final `ci-result` job fails unless all five jobs succeed. Deployment is optional in the rubric and is not configured here.
+`.github/workflows/ci.yml` runs on pushes, pull requests and manual dispatch. Its required jobs install dependencies with `npm ci`, run backend tests and syntax checks, run frontend ESLint and Vitest, build the production frontend, run the Postman/Newman API collection against a temporary MongoDB service and HTTPS API, and analyze code with SonarQube Cloud. The Newman HTML report is uploaded as a workflow artifact; API logs are uploaded if the integration job fails. A final `ci-result` job fails unless all four jobs succeed. Deployment is optional in the rubric and is not configured here.
 
 The existing Classroom50 autograde workflow remains separate. The integration job seeds only its isolated `hustlehub_ci` database. CI credentials are test-only environment values; production secrets belong in the repository's GitHub Actions secrets or deployment environment, never in source control.
 
 ### Static analysis
 
-Frontend ESLint and backend `node --check` run in CI and fail the workflow on errors. The SonarQube Cloud job waits for those backend and frontend checks, runs `npm run test:coverage --prefix Project/server` to generate `Project/server/coverage/lcov.info`, scans backend and frontend code, waits for the quality gate, and fails CI if that gate fails. The coverage command also runs locally without MongoDB. `sonar-project.properties` separates application code from tests and imports the backend LCOV report. The SonarQube project must be connected and the `SONAR_TOKEN` secret plus `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` variables configured before the scan can run; `SONAR_HOST_URL` is optional and defaults to SonarQube Cloud. CodeQL's `security-extended` JavaScript analysis also covers the repository; results appear in GitHub **Security → Code scanning** after the workflow runs. See [Part 3 static analysis evidence and setup](docs/Part3-Static-Analysis.md).
+Frontend ESLint and backend `node --check` run in CI and fail the workflow on errors. The SonarQube Cloud job waits for those backend and frontend checks, runs `npm run test:coverage --prefix Project/server` to generate `Project/server/coverage/lcov.info`, scans backend and frontend code, waits for the quality gate, and fails CI if that gate fails. The coverage command also runs locally without MongoDB. `sonar-project.properties` separates application code from tests and imports the backend LCOV report. The SonarQube project must be connected and the `SONAR_TOKEN` secret plus `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` variables configured before the scan can run; `SONAR_HOST_URL` is optional and defaults to SonarQube Cloud. See [Part 3 static analysis evidence and setup](docs/Part3-Static-Analysis.md).

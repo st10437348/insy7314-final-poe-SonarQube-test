@@ -110,21 +110,6 @@ jobs:
           name: api-log
           path: ${{ runner.temp }}/api.log
 
-  codeql:
-    name: CodeQL JavaScript analysis
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          queries: security-extended
-      - uses: github/codeql-action/analyze@v4
-
   sonarqube:
     name: SonarQube Cloud quality gate
     needs: [backend, frontend]
@@ -167,7 +152,7 @@ jobs:
 
   ci-result:
     if: always()
-    needs: [backend, frontend, api-integration, codeql, sonarqube]
+    needs: [backend, frontend, api-integration, sonarqube]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any required job failed
@@ -175,4 +160,4 @@ jobs:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "$RESULTS"
-          test "$RESULTS" = "success success success success success"
+          test "$RESULTS" = "success success success success"
