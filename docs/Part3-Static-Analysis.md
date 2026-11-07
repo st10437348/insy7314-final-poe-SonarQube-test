@@ -2,11 +2,11 @@
 
 ## Local checks, 7 November 2026
 
-- Backend: `npm run test:coverage --prefix Project/server` passed 39 tests after the security fixes. The generated `Project/server/coverage/lcov.info` records 1,430 covered lines of 2,300 included backend lines (62.17%).
+- Backend: `npm run test:coverage --prefix Project/server` passed 43 tests after the security fixes and added controller validation tests.
 - The coverage script rewrites all 32 LCOV source paths relative to the repository root. All 32 paths were verified to exist. The report is ignored by Git and regenerated in CI.
 - Frontend: `npm run lint` completed without errors or warnings. An ESLint `react-hooks/set-state-in-effect` finding in `AdminPagination.jsx` was fixed without disabling the rule.
 - Backend JavaScript syntax checks completed without errors.
-- Frontend: after the Sonar fixes, `npm run lint`, 30 Vitest tests, and `npm run build` passed locally.
+- Frontend: `npm run test:coverage --prefix Project/client` passed 56 Vitest tests, generated LCOV paths for 27 source files, and reported 579/907 covered lines among the files loaded by tests (63.83%). Sonar also counts untested frontend source files as uncovered. Frontend ESLint passed locally.
 
 These local checks are separate from the SonarQube Cloud results described below.
 
@@ -21,7 +21,7 @@ The first CI-based analysis completed with a passing quality gate, but the overa
 | Super-linear email validation regex in the admin controller | Replaced the full email regex with bounded length and deterministic position checks. | Backend tests and syntax checks passed. |
 | Legacy global number parsing in the create-gig form | Uses `Number.parseFloat`, `Number.parseInt`, and `Number.isNaN`. | Frontend lint, tests, and build passed. |
 
-These changes are local until committed and pushed. The next SonarQube scan must be inspected to confirm which findings close and whether any new findings appear. Do not report them as resolved in SonarQube before that scan.
+The issue fixes were committed and pushed. The next SonarQube scan must be inspected to confirm which findings close and whether any new findings appear. Do not report them as resolved in SonarQube before that scan.
 
 ## Connect SonarQube Cloud
 
@@ -34,7 +34,9 @@ The Classroom50 repository could not be forked, so this SonarQube test repositor
 
 ## How the pipeline works
 
-The SonarQube job waits for successful backend and frontend checks, installs dependencies, generates backend LCOV coverage, and runs the official SonarQube scan action. `sonar-project.properties` scans `Project/server` and `Project/client/src` and imports `Project/server/coverage/lcov.info`. The module manual's example `api/` and Jest commands were adapted to this project's `Project/server/` folder and Node.js test runner.
+The SonarQube job waits for successful backend and frontend checks, installs dependencies, generates both backend and frontend LCOV coverage, and runs the official SonarQube scan action. `sonar-project.properties` scans `Project/server` and `Project/client/src` and imports both coverage reports. Run `npm run test:coverage --prefix Project/server` and `npm run test:coverage --prefix Project/client` locally to inspect the reports. The module manual's example `api/` and Jest commands were adapted to this project's folders and test runners.
+
+The scan after the issue fixes completed but its quality gate failed because coverage on 74 new lines was 30.26%, below the Sonar way requirement of 80%. Sonar showed no new issues. The previous configuration imported only backend coverage, leaving `Project/client/src` at 0%; this update adds a frontend LCOV report and tests for the changed loaders, navigation, and validation. A local comparison of the latest production diff against both LCOV reports found 68 of 79 changed lines covered (86.1%). This is an estimate: Sonar applies its own new-code definition and condition coverage. A later scan must confirm the gate. If it still fails, inspect **Quality Gate → New Code → Coverage**, open the uncovered new lines, and add tests for the changed behavior. Do not lower the gate threshold or mark uncovered code as covered.
 
 The job fails with a configuration error until `SONAR_TOKEN`, `SONAR_ORGANIZATION`, and `SONAR_PROJECT_KEY` are set. It also waits for the SonarQube quality gate and fails if the gate fails. A successful scanner run is therefore not presented as a passing quality gate unless the gate actually passes.
 

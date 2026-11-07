@@ -129,6 +129,8 @@ jobs:
       - run: npm ci --prefix Project/client
       - name: Generate backend LCOV coverage
         run: npm run test:coverage --prefix Project/server
+      - name: Generate frontend LCOV coverage
+        run: npm run test:coverage --prefix Project/client
       - name: Check SonarQube Cloud configuration
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

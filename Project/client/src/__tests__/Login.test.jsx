@@ -84,4 +84,15 @@ describe('Login page', () => {
     await user.click(screen.getByRole('button', { name: /login/i }))
     expect(await screen.findByText('Admin Page')).toBeInTheDocument()
   })
+
+  it('redirects a client to the home page', async () => {
+    const user = userEvent.setup()
+    mockFetch({ body: { user: { id: '2', name: 'Client', role: 'Client' } } })
+    renderLogin()
+    await user.type(screen.getByLabelText(/email/i), 'client@hustlehub.test')
+    await user.type(screen.getByLabelText(/password/i), 'Password123!')
+    await user.click(screen.getByRole('button', { name: /login/i }))
+
+    expect(await screen.findByText('Home Page')).toBeInTheDocument()
+  })
 })
