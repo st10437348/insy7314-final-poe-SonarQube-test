@@ -53,3 +53,18 @@ SonarQube showed 89 dependency-risk entries before this review. The most urgent 
 The client and server lockfiles were updated to patched versions and audited locally with no npm advisories. Local checks passed: 45 backend tests with coverage, 59 frontend tests with coverage, frontend ESLint, and a frontend production build. The LCOV reports contain 1,577/2,300 covered backend lines and 604/907 covered frontend lines among files loaded by the frontend tests. SonarQube's **overall** coverage also includes untested source files and branch conditions; its 57.1% figure from the last scan is therefore different from these local line ratios. The rubric does not require 80% overall coverage. The Sonar way quality gate checks coverage on **new code** at 80%, and the last workflow passed that gate. The new model and pagination tests improve meaningful overall coverage; the next scan will establish the updated figure.
 
 `npm audit` still reports 16 advisories in the top-level Project dependency tree, all in the development-only Newman and HTML reporter chain. `npm audit --omit=dev` reports zero production advisories in Project. Newman and its reporter are used for CI testing, not bundled into the server or browser application. Avoid `npm audit fix --force`: npm currently proposes a breaking Newman downgrade that has not been verified against the API collection. Review the remaining Sonar dependency entries by package, version, and dependency chain after the next scan. The workflow now audits runtime dependencies and fails for high or critical npm advisories, while SonarQube continues to show development dependency risks for review. An npm audit result does not resolve or dismiss a Sonar finding by itself.
+
+## Follow-up coverage work, 7 November 2026
+
+The next SonarQube report showed **59% overall coverage**. The largest gaps were in admin, user, and transaction controllers, admin pages, bookings, and transactions. New tests exercise those behaviors through real controller calls and rendered user interactions, including access checks, status changes, filtering, and delete flows. A small API helper fix preserves default JSON headers when a request supplies its own headers; its regression test covers the bug.
+
+Local verification after these changes:
+
+| Check | Result |
+| --- | --- |
+| Backend `npm run test:coverage --prefix Project/server` | 63 tests passed; 2,015/2,300 lines covered (87.6%). |
+| Frontend `npm run test:coverage --prefix Project/client` | 71 tests passed; 784/922 application lines covered (85.0%); LCOV contains 33 source paths. |
+| Frontend `npm run lint --prefix Project/client` | Passed. |
+| Frontend `npm run build --prefix Project/client` | Passed. |
+
+These local line percentages are **not** a prediction of SonarQube overall coverage. Sonar also accounts for conditions. Frontend Vitest now includes every application JavaScript/JSX source file, including the uncovered bootstrap entry point, so its local report no longer omits unimported code. An unused `AppRoutes.jsx` file with invalid old imports was removed after confirming no code referenced it. The Sonar coverage configuration excludes only one-off backend CLI scripts, matching c8's existing `scripts/**` exclusion; application controllers, pages, and bootstrap files remain in scope. Push these changes and review the next SonarQube scan for the actual overall figure, new-code quality gate, and remaining uncovered files. Do not report the 59% figure as improved until that scan completes.
