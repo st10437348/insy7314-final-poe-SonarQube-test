@@ -41,7 +41,7 @@ function GigDetails() {
             }
         }
 
-        loadGig();
+        void loadGig();
     }, [API_URL, id]);
 
     if (loading) {

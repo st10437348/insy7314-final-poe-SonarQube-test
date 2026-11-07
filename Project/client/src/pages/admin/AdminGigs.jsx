@@ -54,7 +54,7 @@ function AdminGigs() {
     }
 
     useEffect(() => {
-        loadGigs();
+        void loadGigs();
     }, []);
 
     async function handleDelete(gig) {

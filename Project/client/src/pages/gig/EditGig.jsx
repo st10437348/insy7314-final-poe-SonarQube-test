@@ -65,7 +65,7 @@ function EditGig() {
     }
 
     useEffect(() => {
-        loadGig();
+        void loadGig();
     }, [id]);
 
     function handleChange(event) {
@@ -115,7 +115,7 @@ function EditGig() {
                 );
             }
 
-            navigate("/my-gigs");
+            await navigate("/my-gigs");
         } catch (err) {
             console.error("Failed to update gig:", err);
             setError(err.message);
@@ -313,7 +313,7 @@ function EditGig() {
                     <button
                         type="button"
                         className="button button-secondary"
-                        onClick={() => navigate("/my-gigs")}
+                        onClick={() => { void navigate("/my-gigs"); }}
                         disabled={saving}
                     >
                         Cancel

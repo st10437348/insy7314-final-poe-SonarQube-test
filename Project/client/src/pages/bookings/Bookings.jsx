@@ -66,7 +66,7 @@ function Bookings() {
             }
         }
 
-        loadBookings();
+        void loadBookings();
     }, [API_URL]);
 
     function formatDate(date) {

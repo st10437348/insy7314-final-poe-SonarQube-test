@@ -51,7 +51,7 @@ function AdminApiUsage() {
     }
 
     useEffect(() => {
-        loadUsage();
+        void loadUsage();
     }, []);
 
     function getDateValue(date) {

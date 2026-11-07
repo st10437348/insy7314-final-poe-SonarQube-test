@@ -7,23 +7,25 @@ exports.getGigs = async (req, res, next) => {
   try {
     const { search, category, minPrice, maxPrice } = req.query;
 
-    let query = { status: "active", isActive: true };
+    // Start with fixed field names. Only scalar, validated values are added to
+    // the query builder; request objects never become MongoDB filters.
+    let query = Gig.find({ status: "active", isActive: true });
 
     if (typeof search === "string" && search.trim()) {
-      query.title = { $regex: escapeRegex(search.trim().slice(0, 80)), $options: "i" };
+      const safePattern = new RegExp(escapeRegex(search.trim().slice(0, 80)), "i");
+      query = query.where("title").regex(safePattern);
     }
 
     if (typeof category === "string" && category !== "All") {
-      query.category = category;
+      query = query.where("category").equals(category);
     }
 
     if (minPrice || maxPrice) {
-      query.price = {};
-      if (minPrice && Number.isFinite(Number(minPrice))) query.price.$gte = Number(minPrice);
-      if (maxPrice && Number.isFinite(Number(maxPrice))) query.price.$lte = Number(maxPrice);
+      if (minPrice && Number.isFinite(Number(minPrice))) query = query.where("price").gte(Number(minPrice));
+      if (maxPrice && Number.isFinite(Number(maxPrice))) query = query.where("price").lte(Number(maxPrice));
     }
 
-    const gigs = await Gig.find(query)
+    const gigs = await query
       .populate("freelancerId", "name profilePicture rating")
       .sort({ createdAt: -1 });
 

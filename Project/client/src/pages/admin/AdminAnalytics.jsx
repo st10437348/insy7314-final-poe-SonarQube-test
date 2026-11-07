@@ -57,7 +57,7 @@ function AdminAnalytics() {
     }
 
     useEffect(() => {
-        loadAnalytics();
+        void loadAnalytics();
         setCurrentPage(1);
     }, [analytics.length]);
 

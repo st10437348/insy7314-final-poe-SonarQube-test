@@ -2,12 +2,26 @@
 
 ## Local checks, 7 November 2026
 
-- Backend: `npm run test:coverage --prefix Project/server` passed 38 tests. `c8` reported 61.21% statement coverage across the included backend files and generated `Project/server/coverage/lcov.info`.
+- Backend: `npm run test:coverage --prefix Project/server` passed 39 tests after the security fixes. The generated `Project/server/coverage/lcov.info` records 1,430 covered lines of 2,300 included backend lines (62.17%).
 - The coverage script rewrites all 32 LCOV source paths relative to the repository root. All 32 paths were verified to exist. The report is ignored by Git and regenerated in CI.
 - Frontend: `npm run lint` completed without errors or warnings. An ESLint `react-hooks/set-state-in-effect` finding in `AdminPagination.jsx` was fixed without disabling the rule.
 - Backend JavaScript syntax checks completed without errors.
+- Frontend: after the Sonar fixes, `npm run lint`, 30 Vitest tests, and `npm run build` passed locally.
 
-These are local results. No SonarQube Cloud scan or quality gate result is claimed until the remote project is connected and the workflow has run.
+These local checks are separate from the SonarQube Cloud results described below.
+
+## SonarQube findings and remediation, 7 November 2026
+
+The first CI-based analysis completed with a passing quality gate, but the overall-code issue list showed three Blocker NoSQL injection findings and many Medium reliability findings. A passing new-code gate does not clear existing overall-code findings.
+
+| Finding shown by SonarQube | Code response | Verification |
+| --- | --- | --- |
+| NoSQL injection at registration, booking creation, and gig search | Registration uses a scalar email equality filter; booking converts a validated gig ID to a MongoDB ObjectId; gig search builds a query from fixed field names, escaped regex text, and numeric bounds. | Backend tests include equality-filter, ObjectId, and literal-regex assertions; 39 passed. |
+| Floating promises in page loaders and navigation | Effect loaders are explicitly marked as intentionally started and handle their own errors; navigation in async handlers is awaited, while button navigation is explicitly ignored. Top-level server and seed calls have rejection handlers. | Frontend lint, 30 tests, and build passed. |
+| Super-linear email validation regex in the admin controller | Replaced the full email regex with bounded length and deterministic position checks. | Backend tests and syntax checks passed. |
+| Legacy global number parsing in the create-gig form | Uses `Number.parseFloat`, `Number.parseInt`, and `Number.isNaN`. | Frontend lint, tests, and build passed. |
+
+These changes are local until committed and pushed. The next SonarQube scan must be inspected to confirm which findings close and whether any new findings appear. Do not report them as resolved in SonarQube before that scan.
 
 ## Connect SonarQube Cloud
 

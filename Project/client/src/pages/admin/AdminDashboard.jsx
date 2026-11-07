@@ -45,7 +45,7 @@ function AdminDashboard() {
     }
 
     useEffect(() => {
-        loadDashboard();
+        void loadDashboard();
     }, []);
 
     function formatCurrency(value) {

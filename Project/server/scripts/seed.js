@@ -729,4 +729,7 @@ async function seedDatabase() {
     }
 }
 
-seedDatabase();
+seedDatabase().catch((error) => {
+    console.error("Database seeding failed:", error);
+    process.exitCode = 1;
+});

@@ -35,7 +35,7 @@ function Marketplace() {
             }
         }
 
-        loadGigs();
+        void loadGigs();
     }, [API_URL]);
 
     const categories = [

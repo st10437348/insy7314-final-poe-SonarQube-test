@@ -75,7 +75,7 @@ function Transactions() {
             }
         }
 
-        loadTransactions();
+        void loadTransactions();
     }, [API_URL]);
 
     function formatDate(date) {

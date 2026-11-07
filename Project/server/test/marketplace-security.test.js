@@ -29,6 +29,7 @@ const IDS = {
 const originals = {
   userFindById: User.findById,
   gigCreate: Gig.create,
+  gigFind: Gig.find,
   gigFindOne: Gig.findOne,
   gigFindOneAndUpdate: Gig.findOneAndUpdate,
   bookingCreate: Booking.create,
@@ -102,6 +103,7 @@ test.after(async () => {
 test.afterEach(() => {
   User.findById = originals.userFindById;
   Gig.create = originals.gigCreate;
+  Gig.find = originals.gigFind;
   Gig.findOne = originals.gigFindOne;
   Gig.findOneAndUpdate = originals.gigFindOneAndUpdate;
   Booking.create = originals.bookingCreate;
@@ -237,9 +239,13 @@ test("users cannot view a transaction that is not theirs", async () => {
 test("a booking uses the gig price from the database and creates a transaction", async () => {
   let booking;
   let transaction;
-  Gig.findOne = async () => ({
+  let gigFilter;
+  Gig.findOne = async (filter) => {
+    gigFilter = filter;
+    return {
     _id: IDS.gig, freelancerId: IDS.freelancer, price: 1000, location: { address: "Cape Town" }
-  });
+    };
+  };
   Booking.create = async (doc) => { booking = { _id: IDS.booking, ...doc }; return booking; };
   Transaction.create = async (doc) => { transaction = doc; return doc; };
 
@@ -252,6 +258,7 @@ test("a booking uses the gig price from the database and creates a transaction",
   });
 
   assert.equal(res.status, 201);
+  assert.equal(gigFilter._id.toHexString(), IDS.gig);
   assert.equal(booking.agreedPrice, 1000);
   assert.equal(booking.clientId, IDS.client);
   assert.equal(transaction.amount, 1000);
@@ -295,6 +302,31 @@ test("gig input with wrong types (NoSQL injection objects) is rejected", async (
     headers: loginAs("Freelancer", IDS.freelancer)
   });
   assert.equal(res.status, 400);
+});
+
+test("gig search escapes regex input and keeps filter fields fixed", async () => {
+  let filter;
+  Gig.find = (baseFilter) => {
+    const query = originals.gigFind.call(Gig, baseFilter);
+    query.exec = async () => {
+      filter = query.getFilter();
+      return [];
+    };
+    return query;
+  };
+
+  const res = await request({
+    path: "/api/gigs?search=%28a%2B%29%2B&category=Design&minPrice=100&maxPrice=200"
+  });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual({ status: filter.status, isActive: filter.isActive },
+    { status: "active", isActive: true });
+  assert.equal(filter.category, "Design");
+  assert.equal(filter.price.$gte, 100);
+  assert.equal(filter.price.$lte, 200);
+  assert.equal(filter.title.$regex.test("(a+)+"), true);
+  assert.equal(filter.title.$regex.test("aaaa"), false);
 });
 
 test("invalid record IDs are rejected before reaching the database", async () => {

@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
             }
         }
 
-        restoreSession();
+        void restoreSession();
     }, []);
 
     function login(userData) {

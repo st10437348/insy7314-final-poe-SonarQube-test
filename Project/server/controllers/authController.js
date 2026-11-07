@@ -8,9 +8,15 @@ const jwt = require("jsonwebtoken");
 const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
+    // Keep the database filter scalar even if this controller is reused without
+    // the route's validation middleware.
+    if (typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ message: "A valid email is required." });
+    }
+    const safeEmail = email.trim().toLowerCase();
 
     // Check if user exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: { $eq: safeEmail } });
     if (existingUser) {
       return res.status(409).json({ message: "User with this email already exists." });
     }
@@ -22,7 +28,7 @@ const registerUser = async (req, res, next) => {
     // Create + save user
     const newUser = new User({
       name,
-      email,
+      email: safeEmail,
       password: hashedPassword,
       role: role === "Client" ? "Client" : "Freelancer"
     });

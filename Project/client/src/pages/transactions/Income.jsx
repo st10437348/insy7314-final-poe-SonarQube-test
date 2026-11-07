@@ -26,7 +26,7 @@ function Income() {
                 if (!controller.signal.aborted) setLoading(false);
             }
         }
-        loadIncome();
+        void loadIncome();
         return () => controller.abort();
     }, [API_URL]);
 

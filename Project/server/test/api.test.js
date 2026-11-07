@@ -217,7 +217,11 @@ test("registration hashes a valid password before saving", async () => {
 });
 
 test("registration rejects a duplicate email", async () => {
-  User.findOne = async () => ({ _id: "507f1f77bcf86cd799439011" });
+  let filter;
+  User.findOne = async (query) => {
+    filter = query;
+    return { _id: "507f1f77bcf86cd799439011" };
+  };
 
   const response = await request({
     path: "/api/auth/register",
@@ -231,6 +235,7 @@ test("registration rejects a duplicate email", async () => {
   });
 
   assert.equal(response.status, 409);
+  assert.deepEqual(filter, { email: { $eq: "duplicate@example.com" } });
   assert.deepEqual(response.body, { message: "User with this email already exists." });
 });
 

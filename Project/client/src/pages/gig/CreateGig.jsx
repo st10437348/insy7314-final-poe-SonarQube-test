@@ -38,14 +38,14 @@ function CreateGig() {
         try {
 
             // Safely parse numeric fields
-            const parsedPrice = parseFloat(form.price);
-            const parsedDeliveryDays = parseInt(form.deliveryDays, 10);
+            const parsedPrice = Number.parseFloat(form.price);
+            const parsedDeliveryDays = Number.parseInt(form.deliveryDays, 10);
 
-            if (isNaN(parsedPrice) || parsedPrice < 0) {
+            if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
                 throw new Error("Please enter a valid price.");
             }
 
-            if (isNaN(parsedDeliveryDays) || parsedDeliveryDays < 1) {
+            if (Number.isNaN(parsedDeliveryDays) || parsedDeliveryDays < 1) {
                 throw new Error("Delivery days must be at least 1.");
             }
 
@@ -86,9 +86,9 @@ function CreateGig() {
             const gigId = createdGig._id || createdGig.id;
 
             if (gigId) {
-                navigate(`/gigs/${gigId}`);
+                await navigate(`/gigs/${gigId}`);
             } else {
-                navigate("/my-gigs");
+                await navigate("/my-gigs");
             }
         } catch (err) {
             console.error("Failed to create gig:", err);
@@ -235,7 +235,7 @@ function CreateGig() {
                     <button
                         type="button"
                         className="secondary-button"
-                        onClick={() => navigate("/dashboard")}
+                        onClick={() => { void navigate("/dashboard"); }}
                         disabled={loading}
                     >
                         Cancel

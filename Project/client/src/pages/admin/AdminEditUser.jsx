@@ -63,7 +63,7 @@ function AdminEditUser() {
     }
 
     useEffect(() => {
-        loadUser();
+        void loadUser();
     }, [id]);
 
     function handleChange(event) {
@@ -114,7 +114,7 @@ function AdminEditUser() {
                 );
             }
 
-            navigate("/admin/users");
+            await navigate("/admin/users");
         } catch (err) {
             console.error("Failed to update user:", err);
             setError(err.message);
@@ -267,7 +267,7 @@ function AdminEditUser() {
                         type="button"
                         className="button button-secondary"
                         onClick={() =>
-                            navigate("/admin/users")
+                            void navigate("/admin/users")
                         }
                         disabled={saving}
                     >

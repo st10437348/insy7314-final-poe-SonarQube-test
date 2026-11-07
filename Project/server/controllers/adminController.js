@@ -4,6 +4,15 @@ const Booking = require("../models/Booking");
 const ApiUsage = require("../models/ApiUsage");
 const Transaction = require("../models/Transaction");
 
+const validEmail = (value) => {
+  if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
+  const at = value.indexOf("@");
+  if (at < 1 || at !== value.lastIndexOf("@")) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+};
+
 //Admin dashboard
 exports.getAdminDashboard = async(req, res, next) => {
   try{
@@ -97,7 +106,7 @@ exports.updateAdminUser = async (req, res, next) => {
         } = req.body || {};
 
         if ((name !== undefined && (typeof name !== "string" || name.trim().length < 2 || name.length > 100 || /[<>]/.test(name))) ||
-            (email !== undefined && (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) ||
+            (email !== undefined && !validEmail(email)) ||
             (role !== undefined && !["Client", "Freelancer", "Admin"].includes(role)) ||
             (bio !== undefined && (typeof bio !== "string" || bio.length > 2000 || /[<>]/.test(bio))) ||
             (skills !== undefined && (!Array.isArray(skills) || skills.length > 30 || skills.some(s => typeof s !== "string" || s.length > 80 || /[<>]/.test(s)))) ||

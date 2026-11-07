@@ -54,7 +54,7 @@ function AdminUsers() {
     }
 
     useEffect(() => {
-        loadUsers();
+        void loadUsers();
     }, []);
 
     async function handleToggleActive(user) {

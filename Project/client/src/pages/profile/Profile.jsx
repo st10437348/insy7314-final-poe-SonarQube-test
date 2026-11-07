@@ -62,7 +62,7 @@ function Profile() {
             }
         };
 
-        loadProfile();
+        void loadProfile();
     }, [API_URL]);
 
     const handleChange = (event) => {
@@ -170,7 +170,7 @@ function Profile() {
 
             await logout();
 
-            navigate("/");
+            await navigate("/");
 
         } catch (err) {
             console.error("Failed to delete account:", err);

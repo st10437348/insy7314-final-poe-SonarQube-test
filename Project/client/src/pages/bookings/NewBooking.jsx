@@ -37,7 +37,7 @@ function NewBooking() {
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Could not book this gig.");
-            navigate("/bookings", { replace: true, state: { booked: true } });
+            await navigate("/bookings", { replace: true, state: { booked: true } });
         } catch (err) {
             setError(err.message);
         } finally {

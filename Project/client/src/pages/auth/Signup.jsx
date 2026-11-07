@@ -67,7 +67,7 @@ function Signup() {
                 throw new Error(data.message || "Registration failed.");
             }
 
-            navigate("/login", { replace: true, state: { registered: true } });
+            await navigate("/login", { replace: true, state: { registered: true } });
         } catch (err) {
             setError(err.message);
         } finally {

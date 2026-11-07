@@ -41,9 +41,9 @@ function Login() {
             
         login(data.user);
 
-        if (data.user.role === "Admin") navigate("/admin");
-        else if (data.user.role === "Freelancer") navigate("/dashboard");
-        else navigate("/");
+        if (data.user.role === "Admin") await navigate("/admin");
+        else if (data.user.role === "Freelancer") await navigate("/dashboard");
+        else await navigate("/");
 
         } catch (err) {
             setError(err.message);

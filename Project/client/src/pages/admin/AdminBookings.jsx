@@ -58,7 +58,7 @@ function AdminBookings() {
     }
 
     useEffect(() => {
-        loadBookings();
+        void loadBookings();
     }, []);
 
     async function handleStatusChange(

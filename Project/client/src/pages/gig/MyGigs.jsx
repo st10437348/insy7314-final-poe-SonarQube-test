@@ -44,7 +44,7 @@ function MyGigs() {
     }
 
     useEffect(() => {
-        loadGigs();
+        void loadGigs();
     }, []);
 
     async function handleDelete(gigId) {

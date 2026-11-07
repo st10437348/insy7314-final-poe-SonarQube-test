@@ -69,7 +69,7 @@ function Dashboard() {
             }
         }
 
-        loadDashboardData();
+        void loadDashboardData();
     }, [API_URL]);
 
     if (loading) {
