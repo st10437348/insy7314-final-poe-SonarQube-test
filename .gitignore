@@ -1,0 +1,11 @@
+**/node_modules/
+**/.env
+**/certificates/*.pem
+**/certs/*.pem
+**/firebase-service-account.json
+**/dist/
+**/build/
+**/coverage/
+*.log
+Thumbs.db
+.DS_Store
