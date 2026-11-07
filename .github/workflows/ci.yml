@@ -22,6 +22,8 @@ jobs:
           cache: npm
           cache-dependency-path: Project/server/package-lock.json
       - run: npm ci
+      - name: Audit backend runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Backend tests
         run: npm test
       - name: Backend syntax check
@@ -40,6 +42,8 @@ jobs:
           cache: npm
           cache-dependency-path: Project/client/package-lock.json
       - run: npm ci
+      - name: Audit frontend runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: ESLint static analysis
         run: npm run lint
       - name: Frontend tests
@@ -76,6 +80,9 @@ jobs:
           echo "MONGO_URI=mongodb://127.0.0.1:${{ job.services.mongo.ports[27017] }}" >> "$GITHUB_ENV"
           echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - run: npm ci
+        working-directory: Project
+      - name: Audit project runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
         working-directory: Project
       - run: npm ci
         working-directory: Project/server
