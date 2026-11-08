@@ -2,7 +2,7 @@
 
 **INSY7314 POE, Part 3: Secure Stack** · Group 1
 
-HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. **Freelancers** list services ("gigs"), **clients** browse and book them, and **admins** oversee the platform. Part 2 extends the Part 1 HTTPS + authentication backend into a complete, secured application with:
+HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. **Freelancers** list services ("gigs"), **clients** browse and book them, and **admins** oversee the platform. Part 2 extended the Part 1 HTTPS and authentication backend into a secured application. Part 3 adds an income and tax dashboard, CI checks, and SonarQube Cloud analysis in this test repository. The application includes:
 
 - a marketplace API (gigs, bookings, transactions and income)
 - role-based access control (RBAC)
@@ -11,6 +11,8 @@ HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. 
 - security headers with a Content Security Policy
 - a React frontend
 - automated backend and frontend tests
+- tax-year income summaries and an indicative SARS-based tax estimate
+- GitHub Actions checks for tests, builds, API integration, and static analysis
 
 > The Part 1 architecture report, diagram and screenshots are kept in [`docs/Part1-Report.md`](docs/Part1-Report.md).
 
@@ -34,6 +36,8 @@ HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. 
 14. [What changed from Part 1](#14-what-changed-from-part-1)
 15. [References](#15-references)
 16. [Part 3 income, CI and static analysis](#16-part-3-income-ci-and-static-analysis)
+17. [Logging and monitoring](#17-logging-and-monitoring)
+18. [Additional security features](#18-additional-security-features)
 
 ---
 
@@ -58,20 +62,17 @@ Part 2 was split by marking criterion.
 | Backend testing, frontend testing, README, GitHub (20) |  `Caleb Forbes` | Updated Part 1 tests for cookie auth; new RBAC/security tests; Part 2 Postman collection and Newman scripts; rate-limit demo; Vitest + React Testing Library suite; README; repository management | [11](#11-testing) |
 
 
-Part 3 was split by marking criterion
+Part 3 was split by marking criterion.
+
 | Area (marks) | Owner | What was delivered | README section |
 | --- | --- | --- | --- |
-|Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | The application is dockerized into containers | [6](#6-backend-api) |
-|Security Review in ReadMe (10) | `Ruan Helgaard Hartman` | Updated Readme | [6](#6-backend-api) |
-|ReadMe Updates (5) | `Ruan Helgaard Hartman` | Updated Readme | [6](#6-backend-api) |
-
-
+| Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | The application is dockerized into containers | [6](#6-backend-api) |
+| Security Review in README (10) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
+| README Updates (5) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
 | CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
-| Static Code Analysis (10) | `Alexandro Ornelas` | SonarQube Cloud quality gate, ESLint and backend syntax check | [16](#16-part-3-income-ci-and-static-analysis) |
-
-| Logging (10) |  `Caleb Forbes` | work to be noted | [11](#11-testing) |
-| 2 Security Features (15) |  `Caleb Forbes` | work to be noted | [11](#11-testing) |
-
+| Static Code Analysis (10) | `Alexandro Ornelas` | ESLint, backend syntax checks and SonarQube Cloud analysis with a required quality gate | [16](#16-part-3-income-ci-and-static-analysis) |
+| Logging (10) | `Caleb Forbes` | Structured request, business and security events with Better Stack transport and redaction | [17](#17-logging-and-monitoring) |
+| 2 Security Features (15) | `Caleb Forbes` | Per-account login lockout and server-side session revocation | [18](#18-additional-security-features) |
 | Tax + Income Dashboard (20) | `Clifford Naude` | SARS 2027 progressive estimate and responsive earnings dashboard | [16](#16-part-3-income-ci-and-static-analysis) |
 
 ---
@@ -293,8 +294,8 @@ When a client books a gig (`POST /api/bookings`):
 | --- | --- | --- |
 | `amount` | gig price | R1 000.00 |
 | `platformFee` | 10% of amount | R100.00 |
-| `taxAmount` | 15% of (amount - fee) | R135.00 |
-| `freelancerAmount` | amount - fee - tax | R765.00 |
+| `taxAmount` | R0.00 for new transactions; the annual estimate is calculated separately | R0.00 |
+| `freelancerAmount` | amount - fee | R900.00 |
 | `invoiceNumber` | `INV-<bookingId>` | `INV-6650…` |
 
 If the transaction cannot be saved, the booking is rolled back, so a booking never exists without its transaction.
@@ -319,10 +320,12 @@ stateDiagram-v2
 
 ### 6.4 Income tracking
 
-`GET /api/income` returns the logged-in freelancer's totals from transactions whose booking is completed:
+`GET /api/income` returns the logged-in freelancer's current South African tax-year totals from completed transactions and bookings. It groups each payment by the booking's completion date:
 
-- **summary:** `gross`, `fees`, `tax` and `net`
-- **monthlyIncome:** net income grouped by month, used by the income page
+- **period:** tax year and its 1 March to 28 February bounds
+- **summary:** gross earnings, platform fees, taxable platform income, estimated annual tax, income after estimated tax, and any historical recorded tax deductions
+- **monthlyIncome:** twelve months of earnings after fees and before estimated tax
+- **taxMethod:** the rate year, primary rebate, SARS source, and calculation assumptions
 
 ### 6.5 Admin and monitoring
 
@@ -606,10 +609,10 @@ The frontend is a React 19 single-page app built with Vite and React Router 7. I
 
 | Suite | Tool | Location | Result |
 | --- | --- | --- | --- |
-| Backend unit/integration | `node --test` | `Project/server/test/` | 35 tests, 35 passed |
+| Backend unit/integration | `node --test` | `Project/server/test/` | Run by CI |
 | API end-to-end | Postman + Newman | `PostmanCollection/` | 69 requests, 169 assertions |
 | Rate-limit demo | Newman (35 iterations) | `PostmanCollection/` | `429` after 30 attempts |
-| Frontend | Vitest + React Testing Library | `Project/client/src/__tests__/` | 6 files, 29 tests, 29 passed |
+| Frontend | Vitest + React Testing Library | `Project/client/src/__tests__/` | Run by CI |
 
 Run every command from the `Project` folder.
 
@@ -619,7 +622,7 @@ Run every command from the `Project` folder.
 npm run test:server
 ```
 
-The tests start the real Express app over HTTPS on a random port. Database calls are stubbed, so **MongoDB is not needed**.
+The API tests start the real Express app over HTTPS on a random port. Controller and model tests isolate database calls, so **MongoDB is not needed** for this suite.
 
 - **`api.test.js`** (Part 1, updated for cookie auth) covers:
   - HTTPS and the certificate
@@ -632,7 +635,7 @@ The tests start the real Express app over HTTPS on a random port. Database calls
   - RBAC for gigs, bookings, admin and income
   - ownership of gigs and transactions
   - owner spoofing and price tampering
-  - transaction fee, tax and net calculation
+  - transaction fee and payout calculation; annual tax estimation has separate tests
   - XSS and NoSQL-injection rejection, and invalid IDs
   - both rate limiters returning `429`
 
@@ -725,11 +728,11 @@ npm run test:api     # Newman (backend must be running)
 
 <img width="868" height="504" alt="07-transactions" src="https://github.com/user-attachments/assets/669acd6d-f05d-4a74-a3cd-fae46a80a34b" />
 
-*Figure 6: The transaction record created by a completed booking: R5 000 gross, a 10% platform fee (R500), 15% tax (R675) and R3 825 net to the freelancer.*
+*Figure 6: Historical Part 2 transaction screenshot showing R5 000 gross, a R500 platform fee and the former flat simulated tax deduction. Part 3 records no tax deduction on new transactions; its tax-year estimate appears on the income page.*
 
 <img width="767" height="886" alt="08-income" src="https://github.com/user-attachments/assets/09b29af1-ab67-4585-8075-3054b84cc8b0" />
 
-*Figure 7: Income tracking totals the freelancer's completed transactions and shows a monthly breakdown.*
+*Figure 7: Historical Part 2 income screenshot. The Part 3 income page now shows the current tax year, twelve monthly values and a separate annual tax estimate.*
 
 ### 12.3 Client: Booking a gig
 
@@ -838,18 +841,268 @@ Part 1 video: <https://youtu.be/_TZ8-mItvcw>
 
 ### Income and tax dashboard
 
-The freelancer `/income` page now uses completed bookings in the current South African tax year (1 March to 28 February). The API groups earnings by **booking completion date**, rather than booking creation date, and returns twelve monthly values plus gross earnings, platform fees, estimated taxable platform income, indicative tax and income after estimated tax. The dashboard displays the same summary and links to the calculation.
+The freelancer `/income` page uses completed bookings in the current South African tax year (1 March to 28 February). The API groups earnings by **booking completion date**, rather than booking creation date, and returns twelve monthly values plus gross earnings, platform fees, estimated taxable platform income, indicative tax and income after estimated tax. The dashboard shows the same figures and explains the calculation.
 
-The estimate uses the [SARS 2027 individual tax brackets and primary rebate](https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/). It applies the progressive bracket to completed earnings less platform fees, subtracts the R17,820 primary rebate and floors the result at zero. For example, R120,000 completed earnings less R12,000 fees gives R108,000 taxable platform income; 18% is R19,440, less the rebate gives **R1,620 estimated tax**. The estimate assumes an individual under 65 with no other income, expenses, deductions or tax credits. It is not tax withheld, a final tax assessment or a replacement for tax advice. Rates should be reviewed when SARS publishes a new tax year.
+The estimate uses the [SARS 2027 individual tax brackets and primary rebate](https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/). It applies the progressive bracket to completed earnings less platform fees, subtracts the R17,820 primary rebate and floors the result at zero. For example, R120,000 completed earnings less R12,000 fees gives R108,000 taxable platform income; 18% is R19,440, less the rebate gives **R1,620 estimated tax**. It assumes an individual under 65 with no other income, expenses, deductions or tax credits. It is an estimate, not tax withheld or a final tax assessment. The fixed 2027 rates require review for future tax years.
 
-New simulated transactions no longer deduct a flat 15% tax. Existing transactions keep their recorded values, and the income page shows historical simulated deductions separately when present. The monthly chart shows earnings after platform fees and before estimated tax. Empty months, mobile layouts and large currency values are handled without overlapping labels or cards.
+New simulated transactions deduct the 10% platform fee and record zero tax withheld. Older transactions retain their recorded amounts; the income page shows any historical simulated tax deductions separately. The monthly chart shows earnings after platform fees and before estimated tax. The income cards and chart accommodate empty months, mobile screens and large currency values.
 
-### CI/CD pipeline
+[Screenshot: Part 3 income and tax dashboard showing the tax-year heading, summary cards, twelve-month chart and calculation breakdown.]
 
-`.github/workflows/ci.yml` runs on pushes, pull requests and manual dispatch. Its required jobs install dependencies with `npm ci`, run backend tests and syntax checks, run frontend ESLint and Vitest, build the production frontend, run the Postman/Newman API collection against a temporary MongoDB service and HTTPS API, and analyze code with SonarQube Cloud. The Newman HTML report is uploaded as a workflow artifact; API logs are uploaded if the integration job fails. A final `ci-result` job fails unless all four jobs succeed. Deployment is optional in the rubric and is not configured here.
+### Repository used for SonarQube Cloud
 
-The existing Classroom50 autograde workflow remains separate. The integration job seeds only its isolated `hustlehub_ci` database. CI credentials are test-only environment values; production secrets belong in the repository's GitHub Actions secrets or deployment environment, never in source control.
+This is the independent [SonarQube test repository](https://github.com/st10437348/insy7314-final-poe-SonarQube-test). It was created from the [Classroom50 repository](https://github.com/EMGPRS/insy7314-2026-insy7314-poe-classroom-st10437348) because the Classroom50 repository could not be forked and its organization blocked connecting it to SonarQube Cloud. This copy has its own commit history. SonarQube Cloud results below belong to **this test repository**, not the Classroom50 repository. Application fixes and the team's later logging and security work have been copied here so the Cloud scan can assess the combined code.
 
-### Static analysis
+The Classroom50 workflow retains a conditional SonarQube job that is skipped by default while the organization restriction remains. The workflow in this test repository runs SonarQube as a required job and waits for the Cloud quality gate.
 
-Frontend ESLint, backend `node --check`, and runtime dependency audits run in CI and fail the workflow on errors. The SonarQube Cloud job waits for backend and frontend checks, runs `npm run test:coverage --prefix Project/server` and `npm run test:coverage --prefix Project/client` to generate LCOV reports for both applications, scans backend and frontend code, waits for the quality gate, and fails CI if that gate fails. The coverage commands also run locally without MongoDB. `sonar-project.properties` separates application code from tests and imports both LCOV reports. The SonarQube project must be connected and the `SONAR_TOKEN` secret plus `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` variables configured before the scan can run; `SONAR_HOST_URL` is optional and defaults to SonarQube Cloud. Dependency findings and overall coverage are explained in [Part 3 static analysis evidence and setup](docs/Part3-Static-Analysis.md).
+### GitHub Actions pipelines and workflows
+
+#### `CI and static analysis` in this SonarQube test repository
+
+The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request and can also be started manually. GitHub-hosted Ubuntu runners use Node.js 22 and lockfile-based `npm ci` installs. Its jobs run independently unless a dependency is stated:
+
+| Job | Work performed | What makes it fail |
+| --- | --- | --- |
+| `backend` | Installs `Project/server` dependencies, checks high or critical **runtime** dependency advisories, runs the Node.js backend test suite, and parses every backend JavaScript file with `node --check`. | A dependency audit, test or syntax check fails. |
+| `frontend` | Installs `Project/client` dependencies, checks high or critical runtime advisories, runs ESLint and Vitest, then builds the production React bundle with Vite. | An audit, lint rule, test or build fails. |
+| `api-integration` | Starts a health-checked MongoDB 7 service, generates a temporary JWT secret, installs the root and backend packages, audits root runtime dependencies, creates the test HTTPS certificate, seeds only the `hustlehub_ci` database, starts the HTTPS API, waits for its health endpoint, and runs the Postman collection through Newman. | Installation, audit, database seed, API startup, health check or a Newman assertion fails. |
+| `sonarqube` | After `backend` and `frontend` succeed, installs both packages, generates backend and frontend LCOV reports, checks the Cloud credentials, runs `SonarSource/sonarqube-scan-action@v8.3.0`, and waits for the quality gate. | Required configuration is missing, analysis fails, or the Cloud quality gate fails. This job is **required** in this repository. |
+| `ci-result` | Runs even when an earlier job fails. It requires `backend`, `frontend`, `api-integration` and `sonarqube` all to succeed. | Any of the four required jobs fails or is skipped. |
+
+`api-integration` uploads the Newman HTML report as a `newman-report` artifact even when the test job fails; on failure it also uploads the API log. The MongoDB service and generated secret exist only for that CI run. The workflow does not deploy the application.
+
+[Screenshot: This repository's GitHub Actions “CI and static analysis” run showing backend, frontend, API integration, SonarQube Cloud quality gate and `ci-result` statuses.]
+
+#### Classroom50 CI and Autograde workflows
+
+The Classroom50 repository has the same three core application checks: `backend`, `frontend` and `api-integration`. Its `sonarqube` job is conditional because the organization blocks the Cloud connection; its `ci-result` requires a skip when SonarQube is disabled and a pass when it is enabled. Its separate `Autograde` workflow runs on `main` pushes and `submit/*` tags and delegates to Classroom50's reusable grading workflow. This copied repository also contains that Autograde workflow file, but it is separate from the application CI and SonarQube quality gate.
+
+The [Sonar project configuration](sonar-project.properties) scans `Project/server` and `Project/client/src`, identifies test directories separately, and imports backend and frontend LCOV reports. Generated files, dependencies and tests are excluded from source analysis. One-off backend CLI scripts are excluded from **coverage**; application controllers, models, pages and the frontend entry point remain in scope. This distinction matters because an untested source file appears as uncovered in SonarQube Cloud even if a test runner's own report lists only imported files. CodeQL was removed as an additional scanner because GitHub code scanning was unavailable here; SonarQube Cloud supplies the static analysis and quality gate.
+
+[Screenshot: Classroom50 GitHub Actions CI run showing the three required application jobs, the skipped conditional SonarQube job, and the final result.]
+
+### SonarQube Cloud analysis and fixes
+
+The values below are **historical Cloud snapshots from this test repository**. They describe what SonarQube Cloud displayed at different scans, not a current measurement of the copied 8 November changes. A green new-code gate does not mean every finding in overall code has been resolved.
+
+#### Initial project health and code findings
+
+The first Cloud overview showed a passing quality gate alongside **38 overall-code issues**, **43.9% overall coverage** and **1.4% duplication**. Its security snapshot showed rating **E** and four security issues; reliability was **C** with 34 issues; maintainability was **A** with four issues; security hotspots showed **A** and zero hotspots. This prompted a review of the issue list despite the passing gate.
+
+[Screenshot: SonarQube Cloud test-project overview showing the initial quality gate, 38 issues, 43.9% coverage and 1.4% duplication.]
+
+| Cloud finding | Change made in the application |
+| --- | --- |
+| Three Blocker NoSQL injection issues in registration, booking creation and gig search | Registration uses a scalar email equality filter. Booking creation converts a validated gig ID to a MongoDB `ObjectId`. Gig search uses fixed query fields, escaped literal search text and numeric bounds. These changes prevent request data from becoming MongoDB query operators. |
+| Medium reliability findings for unhandled promises across page loaders and navigation | Async effect loaders explicitly start with `void` and handle their own errors; async navigation is awaited where appropriate. Server startup and seed entry points handle rejected promises. |
+| Super-linear email-validation regex in the admin controller | Replaced the expression with bounded, deterministic checks so long crafted input does not cause excessive backtracking. |
+| Number parsing style and reliability findings in the create-gig form | Uses `Number.parseFloat`, `Number.parseInt` and `Number.isNaN` for the numeric inputs. |
+
+[Screenshot: SonarQube Cloud issue list showing the three original Blocker NoSQL injection findings and the affected files.]
+
+#### Coverage and the quality gate
+
+A later Cloud scan reported **30.26% coverage on 74 new lines**, below the Sonar way gate's **80% new-code coverage** condition. It showed **zero new issues**, but the gate still failed. Backend coverage had been imported while frontend source appeared at 0% because its LCOV report was missing from the scan. The CI scan was changed to generate and import both reports, and tests were added around changed page loaders, navigation and validation. A later GitHub Actions run showed the SonarQube Cloud quality-gate job passing. That passing run does not establish a new overall-coverage percentage by itself.
+
+The Cloud coverage views subsequently showed **57.1%**, then **59% overall coverage**. The 59% view identified large gaps in admin, user and transaction controllers and in several admin, booking and transaction pages. Tests were added for access control, status changes, filtering, deletion and rendered user interactions. Coverage reporting was expanded to include all frontend source files; an unused `AppRoutes.jsx` file with stale imports was removed. The API helper was also fixed to preserve default JSON headers when callers provide other headers. A further Cloud scan is needed to establish the effect of those later changes on the overall figure.
+
+[Screenshot: SonarQube Cloud failed quality gate showing 30.26% new-code coverage against the 80% condition.]
+
+[Screenshot: SonarQube Cloud overall coverage view showing the later 59% figure and the lowest-covered application files.]
+
+#### Dependency risks and the remaining security finding
+
+SonarQube Cloud displayed **89 dependency-risk entries** before the dependency review. The application did not import the direct `node.js@0.0.1-security` npm package, so it was removed; Node.js comes from the runtime, not that package. Dependency locks were updated to patched `handlebars`, `node-forge`, `qs` and `lodash` versions where applicable. Runtime dependency audits were added to CI. The **current Cloud dependency-risk count has not been verified**, so the earlier 89 is a baseline rather than a claim that all risks were cleared.
+
+A later Cloud issue list showed **one open Low security issue**: possible log injection in `Project/server/middleware/errorMiddleware.js`. The fallback logger previously included the request URL and error name, which could contain attacker-controlled newlines. It now logs a generated incident ID and returns that ID in the `X-Incident-Id` response header while keeping the same safe 500 response body. A regression test checks that forged newline text is absent from the log. The screenshot of the open issue predates this fix; a later SonarQube Cloud scan has not been provided to confirm closure.
+
+[Screenshot: SonarQube Cloud dependency-risk view showing the original 89 entries and the listed packages.]
+
+[Screenshot: SonarQube Cloud issue list showing the Low log-injection finding in `errorMiddleware.js` before its fix.]
+
+SonarQube Cloud findings guided the code changes above. The scanner and gate continue to report remaining risks and coverage gaps for this test repository; the Classroom50 repository cannot currently connect to the service.
+
+## 17. Logging and monitoring
+
+HustleHub+ records every important action as a **structured JSON log event** and sends it to **Better Stack**, a cloud log platform, as well as to the terminal and local log files. Each line answers *what happened, to whom, from where, and in which request*, so the team can investigate an incident, spot an attack while it is happening, and prove what the system did.
+
+### 17.1 How it works
+
+| Part | File | Purpose |
+| --- | --- | --- |
+| Logger | `Project/server/utils/logger.js` | Winston logger. Writes one JSON object per line, cleans every value, and sends entries to up to three destinations. |
+| Request logger | `Project/server/middleware/requestLogger.js` | Gives each request a unique ID (returned in the `X-Request-Id` header) and writes one `http.request` entry with method, route, status code and duration. |
+| Event calls | Controllers and middleware | `logEvent(level, "area.action.result", req, details)` at each security or business event (table below). |
+
+**Where logs go**
+
+| Destination | When | Used for |
+| --- | --- | --- |
+| **Better Stack** (cloud) | When `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` are set | Central, searchable storage that survives restarts and containers; live tail, filters, dashboards and alerts |
+| Terminal (stdout) | Always | Local development, `docker logs`, GitHub Actions output |
+| `Project/server/logs/app.log` | Unless `LOG_TO_FILE=false` | Every entry, rotated at 5 MB (5 files kept) |
+| `Project/server/logs/security.log` | Unless `LOG_TO_FILE=false` | `warn` and `error` entries only: a quick list of suspicious activity |
+
+Log files are git-ignored. During automated tests the logger is silent, unless `LOG_LEVEL` is set.
+
+**Every entry contains** `timestamp`, `level`, `event`, `category` (the part before the first dot), `service` (`hustlehub-api`), `environment`, the `requestId`, the client `ip`, and, for signed-in users, `userId` and `userRole`, plus the event's own details. Because all events from one request share a `requestId`, a booking can be followed from the HTTP request to the booking and the transaction it created.
+
+Example (one line in the log, formatted here for reading):
+
+```json
+{
+  "timestamp": "2026-11-08T13:18:02.658Z",
+  "level": "warn",
+  "event": "auth.login.failed",
+  "category": "auth",
+  "reason": "wrong_password",
+  "email": "c***@hustlehub.test",
+  "accountKey": "a0e5f9a06b02aac0",
+  "failedCount": 1,
+  "ip": "127.0.0.1",
+  "requestId": "b6e090f2-f7b8-46a0-844b-8a9531a3eb75",
+  "service": "hustlehub-api",
+  "environment": "development"
+}
+```
+
+### 17.2 What is logged and why
+
+| Area | Events | Level | Why it matters |
+| --- | --- | --- | --- |
+| **Login attempts** | `auth.login.success`, `auth.login.failed` (with `reason`: `unknown_email`, `wrong_password`, `inactive_account`, `no_local_password`, and `failedCount`) | info / warn | Shows who signed in and when. Repeated failures reveal password guessing or credential stuffing. The reason is logged for investigators but never shown to the user. |
+| **Account lockout** | `auth.account.locked`, `auth.login.blocked_locked` | error / warn | A brute-force attack against one account. `error` level so it stands out and can trigger an alert. |
+| **Registration and logout** | `auth.register.success`, `auth.register.duplicate`, `auth.logout` | info / warn | Account creation history; repeated duplicate attempts can indicate email enumeration. |
+| **Tokens** | `auth.token.invalid` (expired, forged or malformed), `auth.token.revoked`, `auth.token.account_unavailable` | warn | Forged or reused tokens are a sign of session hijacking. |
+| **Access control** | `access.denied.role`, `access.denied.booking`, `access.denied.transaction` | warn | A user trying to reach another role's routes or someone else's data, which is the main sign of privilege-escalation or IDOR probing. |
+| **Bookings** | `booking.created`, `booking.create.rejected`, `booking.status.changed` (from/to), `booking.status.rejected` | info / warn | An audit trail of every booking and status change, for disputes and fraud checks. |
+| **Transactions** | `transaction.created` (amount, fee, freelancer amount, invoice), `transaction.status.changed`, `transaction.payout.recorded`, `transaction.payout.rejected`, `transaction.create.failed` | info / warn / error | A financial audit trail: every amount the platform records or pays out can be traced to a request and a user. |
+| **Attacks blocked** | `security.rate_limit.auth`, `security.rate_limit.booking`, `security.origin.blocked` | warn | Shows when the rate limits and the CSRF origin check stop real traffic. |
+| **Admin actions** | `admin.user.updated` (fields changed, new role, deactivation), `user.account.deactivated` | info / warn | Who changed whose role or disabled whose account. Privileged actions must be accountable. |
+| **Errors** | `server.error` (with `incidentId`, route and error class), `server.unhandled_rejection`, `server.uncaught_exception` | error | Unexpected failures. The `incidentId` is also returned to the user in the `X-Incident-Id` header, so a user's report can be matched to the exact log line. |
+| **Server lifecycle** | `server.started`, `server.stopping`, `server.start_failed` | info / error | Shows restarts, crashes and deployments. |
+| **Every request** | `http.request` (method, route, status, duration) | info, or warn for 4xx and error for 5xx | Traffic, error rates and slow endpoints. |
+
+### 17.3 Keeping the logs safe
+
+Logs are only useful if they can be trusted and do not become a data leak themselves.
+
+- **No secrets:** any field whose name looks like a password, token, secret, cookie, session or authorization header is replaced with `[redacted]`. Passwords and JWTs are never passed to the logger at all.
+- **No full email addresses:** emails are masked (`c***@hustlehub.test`) and paired with a short SHA-256 `accountKey`, so repeated attempts on one account can be linked without storing the address.
+- **No log injection:** every entry is one JSON object, control characters such as `\r\n` are removed, and strings are capped at 200 characters, so attacker input cannot forge extra log lines. This matches the log-injection fix made after the SonarQube review (section 16).
+- **No raw URLs:** the route is logged as a cleaned label (for example `/api/bookings/:param/status`); IDs, query strings and other user-typed text are dropped.
+- **Errors are not exposed:** the error message and stack stay on the server. The client only receives the generic message and the incident ID.
+
+### 17.4 Setting up Better Stack (cloud logging)
+
+1. Create a free account at [betterstack.com](https://betterstack.com), go to **Sources** and click **Connect source**.
+2. Name it `HustleHub API`, choose **Node.js** as the platform, and create the source.
+3. Open the source and click **Configure**. Copy the **Source token** and the **Ingesting host** into `Project/.env`:
+
+   ```env
+   BETTER_STACK_SOURCE_TOKEN=your-source-token
+   BETTER_STACK_INGESTING_HOST=s123456.eu-nbg-2.betterstackdata.com
+   ```
+
+4. Restart the API. The `server.started` event shows `"cloudLogging":"better-stack"` and appears in Better Stack's **Live tail** within a few seconds ([Better Stack Winston guide](https://betterstack.com/docs/logs/javascript/winston/)).
+
+Useful searches in Better Stack: `event:auth.login.failed`, `level:error`, `category:transaction`, `event:auth.account.locked`, or a `requestId` to see everything from one request. The token is a secret: it lives only in `.env` (or the Docker environment / a GitHub Actions secret) and is never committed. Without these two values the app still logs to the terminal and local files.
+
+### 17.5 Logging evidence
+
+**Better Stack Live tail:** HustleHub API events arriving in the cloud (`http.request`, `auth.login.success`, `booking.created`, `transaction.created`).
+
+![Better Stack live tail](Screenshots/20-betterstack-live-tail.png)
+
+**Failed logins in Better Stack:** masked emails, the failure reason and the failed count for each attempt.
+
+![Better Stack failed logins](Screenshots/21-betterstack-failed-logins.png)
+
+**A transaction audit entry:** amount, platform fee, freelancer amount, invoice number and request ID.
+
+![Better Stack transaction entry](Screenshots/22-betterstack-transaction-entry.png)
+
+**Local security log:** `Project/server/logs/security.log` contains only warn and error entries.
+
+![Security log file](Screenshots/23-security-log-file.png)
+
+**Automated tests** for logging, account lockout and session revocation, all passing.
+
+![Logging and security tests](Screenshots/24-logging-tests.png)
+
+---
+
+## 18. Additional security features
+
+Parts 1 and 2 already cover the minimum controls: HTTPS, bcrypt, JWT in an HttpOnly cookie, RBAC, validation, rate limiting, Helmet/CSP and the CSRF origin check. Part 3 adds two security features beyond those minimums. Both are fully tested, logged, and need no frontend changes, because the React app already shows the API's message and already calls the logout endpoint.
+
+### 18.1 Feature 1: Per-account lockout after repeated failed logins
+
+**The gap it closes.** The Part 2 rate limiter counts requests **per IP address**. An attacker spreading guesses across many IP addresses (a botnet or rotating proxies) could still try unlimited passwords against **one** account.
+
+**How it works** (`services/accountLockout.js`, `models/LoginAttempt.js`, `controllers/authController.js`):
+
+1. Every failed sign-in for an email address is counted in the `loginattempts` collection. The address is stored only as a SHA-256 hash.
+2. **5 failures within 15 minutes lock that account for 15 minutes.** The fifth failure, and every attempt during the lock, returns `429` with a `Retry-After` header and the message *"Too many failed sign-in attempts. This account is temporarily locked. Try again later."*
+3. While locked, **even the correct password is refused** and no session cookie is issued. The password is not even checked, which also saves CPU.
+4. A successful sign-in resets the counter. Locks expire on their own, and a MongoDB TTL index deletes old records.
+5. **No account enumeration:** unknown email addresses are counted and locked the same way, so an attacker cannot use the lockout to discover which emails are registered. Before the lock, every failure still returns the same generic *"Invalid email or password."*
+6. Every failure is logged as `auth.login.failed` with its reason and count, and the lock itself as `auth.account.locked` (level `error`).
+
+The limits can be changed in `.env` (`LOGIN_MAX_FAILED_ATTEMPTS`, `LOGIN_ATTEMPT_WINDOW_MINUTES`, `LOGIN_LOCKOUT_MINUTES`). The trade-off is that someone who knows a user's email could lock them out for 15 minutes. The short, automatic unlock keeps that impact small, and the IP rate limiter still limits how fast one attacker can do it.
+
+| | Before (Part 2) | After (Part 3) |
+| --- | --- | --- |
+| 1 attacker, 1 IP | Blocked after 30 requests / 15 min | Account locked after 5 wrong passwords |
+| Many IPs, 1 account | Unlimited guesses | Account locked after 5 wrong passwords |
+| Correct password during an attack | Accepted | Refused until the lock expires |
+
+### 18.2 Feature 2: Server-side session revocation
+
+**The gap it closes.** A JWT is valid until it expires (up to 7 days with the current settings). Before this change, *logging out only deleted the cookie in the browser*. A token that had been copied, for example through a shared computer, malware or a leaked request log, kept working for days. Likewise, a user who was deactivated or had their role changed kept their existing session.
+
+**How it works** (`models/User.js`, `controllers/authController.js`, `middleware/authMiddleware.js`):
+
+1. Every user has a `tokenVersion` number. Each JWT records the version it was issued with (`tv`).
+2. On every protected request, `protect` compares the token's version with the user's current version. If they differ, the request is rejected with `401` *"Session has ended. Please log in again."* and an `auth.token.revoked` event is logged.
+3. The version is increased when:
+   - the user **logs out**, so every token issued before the logout stops working at once, on every device;
+   - an admin **changes the user's role** or **deactivates** the account;
+   - a user **deletes (deactivates)** their own account, or an admin removes it.
+4. Editing other profile details does not log anyone out. Tokens issued before this feature (with no version) count as version 0, so existing sessions keep working until the next logout.
+
+### 18.3 Related hardening by the team
+
+During the SonarQube review (section 16), the team also fixed three NoSQL-injection findings: scalar `$eq` email filters, validated `ObjectId` conversion for bookings, and escaped literal gig search. The login lookup added in this part uses the same `$eq` filter.
+
+### 18.4 How the features are tested
+
+| Test | What it proves |
+| --- | --- |
+| `test/account-lockout.test.js` (9 tests) | Locks on the 5th failure with `Retry-After`; email case and spaces cannot bypass it; the correct password is refused while locked; success resets the counter; locks and windows expire; only a hash is stored; unknown emails lock identically. |
+| `test/session-revocation.test.js` (9 tests) | Login puts the version in the JWT; logout revokes a copied token; an invalid logout revokes nothing; revoked tokens fail on role-protected routes; role changes and deactivation revoke; ordinary profile edits do not. |
+| `test/logging.test.js` (14 tests) | Request IDs and route labels; login, booking, transaction, access-denied, invalid-token, blocked-origin, rate-limit and error events; secrets redacted, emails masked, no log injection, no raw URLs. |
+| Postman, main collection, folder 7 | A token copied before logout works, logout succeeds, and the same token is then rejected with `401` *Session has ended*. |
+| Postman, `HustleHub Part 3 - Account Lockout Demo` (`npm run test:lockout`) | Four `401`s, a `429` lock with `Retry-After`, the correct password refused while locked, an unknown email locked the same way, and another account unaffected. |
+
+### 18.5 Security feature evidence
+
+**Account lockout demo** (`npm run test:lockout`): the 401s, the 429 lock and an unaffected account.
+
+![Lockout Newman run, part 1](Screenshots/25.1-lockout-newman.png)
+
+![Lockout Newman run, part 2](Screenshots/25.2-lockout-newman.png)
+
+**Session revocation** (`npm run test:api`, folder 7): a token copied before logout is rejected afterwards.
+
+![Revocation Newman run](Screenshots/26-revocation-newman.png)
+
+**Lockout in the app:** the login page after five wrong passwords.
+
+![Locked login page](Screenshots/27-lockout-login-page.png)
+
+**Both features in Better Stack:** `auth.account.locked` and `auth.token.revoked` events.
+
+![Better Stack auth.account.locked event](Screenshots/28.1-betterstack-security-events.png)
+
+![Better Stack auth.token.revoked event](Screenshots/28.2-betterstack-security-events.png)

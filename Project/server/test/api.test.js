@@ -21,6 +21,12 @@ let originalFindById;
 // API usage logging writes to MongoDB; stub it so unit tests run without a database.
 ApiUsage.create = async () => ({});
 
+// Account lockout is tested in account-lockout.test.js; here it never locks.
+const accountLockout = require("../services/accountLockout");
+accountLockout.getLockStatus = async () => ({ locked: false });
+accountLockout.recordFailedLogin = async () => ({ locked: false, failedCount: 1, attemptsRemaining: 4 });
+accountLockout.clearFailedLogins = async () => {};
+
 // The auth middleware loads the user from the database; this fakes an active account.
 const mockActiveUser = (role) => {
   User.findById = () => ({

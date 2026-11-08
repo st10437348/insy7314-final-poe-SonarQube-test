@@ -1,0 +1,467 @@
+{
+  "info": {
+    "_postman_id": "95cd17fc-8d6c-4ddc-8680-0fd416d7720f",
+    "name": "HustleHub Part 3 - Account Lockout Demo",
+    "description": "Part 3 security feature: per-account lockout.\n\nRun with: npm run test:lockout (backend running, database seeded).\n\nFive wrong passwords for one account inside 15 minutes lock that account for 15 minutes (HTTP 429 with Retry-After). While locked even the correct password is refused. Unknown emails lock the same way, so the response cannot reveal which accounts exist. Other accounts are unaffected.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register a fresh account to lock",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"lockEmail\", `lockout.${Date.now()}@hustlehub.test`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Lockout Demo\",\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"Client\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Wrong password attempt 1 of 5 (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Generic message, no hint about the lockout counter\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid email or password.\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Wrong password attempt 2 of 5 (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Generic message, no hint about the lockout counter\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid email or password.\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Wrong password attempt 3 of 5 (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Generic message, no hint about the lockout counter\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid email or password.\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Wrong password attempt 4 of 5 (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Generic message, no hint about the lockout counter\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid email or password.\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Fifth wrong password locks the account (429)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 429\", () => pm.response.to.have.status(429));",
+              "pm.test(\"Lockout message is returned\", () => pm.expect(pm.response.json().message).to.eql(\"Too many failed sign-in attempts. This account is temporarily locked. Try again later.\"));",
+              "pm.test(\"Retry-After header gives the lock time (15 minutes)\", () => pm.expect(Number(pm.response.headers.get(\"Retry-After\"))).to.be.within(1, 900));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Correct password is refused while locked (429)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 429\", () => pm.response.to.have.status(429));",
+              "pm.test(\"No session cookie is issued\", () => pm.expect(pm.response.headers.has(\"Set-Cookie\")).to.be.false);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Unknown email locks the same way - no account enumeration (429 on 5th)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get(\"ghostAttempt\") || pm.collectionVariables.get(\"ghostAttempt\") === \"0\") {",
+              "    pm.collectionVariables.set(\"ghostEmail\", `nobody.${Date.now()}@hustlehub.test`);",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const attempt = Number(pm.collectionVariables.get(\"ghostAttempt\") || \"0\") + 1;",
+              "pm.collectionVariables.set(\"ghostAttempt\", String(attempt));",
+              "if (attempt < 5) {",
+              "    pm.test(`Attempt ${attempt}: generic 401`, () => pm.response.to.have.status(401));",
+              "    postman.setNextRequest(\"Unknown email locks the same way - no account enumeration (429 on 5th)\");",
+              "} else {",
+              "    pm.test(\"Attempt 5: same lockout response as a real account\", () => {",
+              "        pm.response.to.have.status(429);",
+              "        pm.expect(pm.response.json().message).to.include(\"temporarily locked\");",
+              "    });",
+              "    pm.collectionVariables.set(\"ghostAttempt\", \"0\");",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{ghostEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Lockout is per account: another account still signs in (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Other users are not affected by the lock\", () => pm.expect(pm.response.json().user.email).to.eql(\"client@hustlehub.test\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"client@hustlehub.test\",\n  \"password\": \"Password123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:5000"
+    },
+    {
+      "key": "password",
+      "value": "SecurePass1!"
+    },
+    {
+      "key": "lockEmail",
+      "value": ""
+    },
+    {
+      "key": "ghostEmail",
+      "value": ""
+    },
+    {
+      "key": "ghostAttempt",
+      "value": "0"
+    }
+  ]
+}

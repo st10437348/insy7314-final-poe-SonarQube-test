@@ -14,6 +14,8 @@
     "test:coverage": "node scripts/generateCertificate.js && c8 node --test && node scripts/prepareSonarCoverage.js"
   },
   "dependencies": {
+    "@logtail/node": "^0.6.1",
+    "@logtail/winston": "^0.6.1",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -23,7 +25,8 @@
     "express-validator": "^7.3.2",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.24.5"
+    "mongoose": "^8.24.5",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "c8": "^12.0.0"

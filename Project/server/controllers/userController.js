@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { logEvent } = require("../utils/logger");
 const bcrypt = require("bcryptjs");
 
 // GET ALL USERS
@@ -132,7 +133,9 @@ const deleteProfile = async(req, res, next) => {
     if(!user) return res.status(404).json({message: "User not found."});
 
     user.isActive = false;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
+    logEvent("warn", "user.account.deactivated", req, { targetUserId: user._id, by: "self", sessionsRevoked: true });
 
     res.status(200).json({message: "Account deleted successfully."});
   }
@@ -152,7 +155,9 @@ const deleteUser = async(req, res, next) => {
     if(req.user.id.toString() === user._id.toString()) return res.status(400).json({message: "You can't delete your own admin account"})
 
       user.isActive = false;
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save();
+      logEvent("warn", "user.account.deactivated", req, { targetUserId: user._id, by: "admin", sessionsRevoked: true });
 
     res.status(200).json({message: "User deleted successfully."});
   }

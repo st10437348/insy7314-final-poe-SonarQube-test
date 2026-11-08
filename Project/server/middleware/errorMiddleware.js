@@ -1,4 +1,5 @@
 const { randomUUID } = require("node:crypto");
+const { logEvent, routeLabel } = require("../utils/logger");
 
 // Return a predictable response for URLs that do not match an API route.
 const notFound = (req, res) => {
@@ -30,6 +31,15 @@ const errorHandler = (error, req, res, next) => {
   // Keep client-controlled URLs and error names out of logs; use this ID to match reports.
   const incidentId = randomUUID();
   console.error("Unexpected server error", { incidentId });
+  // Structured copy for the log platform: only the generated ID, the route pattern
+  // and the error class, never the error message or the raw URL.
+  logEvent("error", "server.error", req, {
+    incidentId,
+    method: req.method,
+    route: routeLabel(req),
+    // Class names only (e.g. TypeError, MongoServerError); anything unusual becomes "Error".
+    errorType: /^[A-Za-z]{1,40}$/.test(error?.name || "") ? error.name : "Error"
+  });
   res.set("X-Incident-Id", incidentId);
   return res.status(500).json({ message: "An unexpected server error occurred." });
 };

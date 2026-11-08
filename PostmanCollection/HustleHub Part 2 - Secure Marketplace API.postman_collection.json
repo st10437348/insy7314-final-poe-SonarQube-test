@@ -2691,7 +2691,7 @@
     },
     {
       "name": "7. Token & Session Security",
-      "description": "Checks behaviour after logout and with tampered or missing tokens.",
+      "description": "Checks behaviour after logout and with tampered or missing tokens. Includes Part 3 server-side session revocation: a token copied before logout is rejected afterwards.",
       "item": [
         {
           "name": "Protected route rejected after logout (401)",
@@ -2825,6 +2825,156 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Login Client to capture a token for the revocation test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const cookie = pm.response.headers.get(\"Set-Cookie\") || \"\";",
+                  "const match = /token=([^;]+)/.exec(cookie);",
+                  "pm.test(\"Session token captured\", () => pm.expect(match).to.not.be.null);",
+                  "pm.collectionVariables.set(\"copiedToken\", match ? match[1] : \"\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clientEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Copied token works before logout (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{copiedToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout revokes the session on the server (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Auth cookie is cleared\", () => pm.expect(pm.response.headers.get(\"Set-Cookie\") || \"\").to.match(/token=;/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Copied token is rejected after logout - revoked (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Server reports the session has ended\", () => pm.expect(pm.response.json().message).to.eql(\"Session has ended. Please log in again.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{copiedToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
@@ -2888,6 +3038,10 @@
     },
     {
       "key": "freelancerAmount",
+      "value": ""
+    },
+    {
+      "key": "copiedToken",
       "value": ""
     }
   ]

@@ -1,4 +1,5 @@
 const Transaction = require("../models/Transaction");
+const { logEvent } = require("../utils/logger");
 
 // @desc    Create a new transaction (payment log)
 // @route   POST /api/transactions
@@ -39,6 +40,7 @@ exports.getTransactionById = async (req, res, next) => {
     if (req.user.role !== "Admin" &&
         transaction.clientId._id.toString() !== req.user.id &&
         transaction.freelancerId._id.toString() !== req.user.id) {
+      logEvent("warn", "access.denied.transaction", req, { transactionId: transaction._id });
       return res.status(403).json({ message: "Access denied." });
     }
 
@@ -59,11 +61,17 @@ exports.processPayout = async (req, res, next) => {
     }
     if (transaction.status !== "completed" ||
         transaction.bookingId?.status !== "completed" || transaction.payoutDate) {
+      logEvent("warn", "transaction.payout.rejected", req, { transactionId: transaction._id, status: transaction.status });
       return res.status(409).json({ message: "Only unpaid completed bookings can be paid out." });
     }
 
     transaction.payoutDate = new Date();
     await transaction.save();
+    logEvent("info", "transaction.payout.recorded", req, {
+      transactionId: transaction._id,
+      freelancerId: transaction.freelancerId,
+      freelancerAmount: transaction.freelancerAmount
+    });
 
     res.status(200).json({ success: true, transaction });
   } catch (error) {

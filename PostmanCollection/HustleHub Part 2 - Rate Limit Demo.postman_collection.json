@@ -2,13 +2,24 @@
   "info": {
     "_postman_id": "24355faa-54fe-405e-ac58-577b350846ca",
     "name": "HustleHub Part 2 - Rate Limit Demo",
-    "description": "Run with: newman run <this file> -n 35 --insecure\n\nSends repeated failed logins. The login limiter allows 30 requests per 15 minutes per IP, then returns 429 with a clear message. Run this LAST (or restart the server afterwards), because it locks login/register for 15 minutes.",
+    "description": "Run with: newman run <this file> -n 35 --insecure\n\nSends repeated failed logins. The login limiter allows 30 requests per 15 minutes per IP, then returns 429 with a clear message. Run this LAST (or restart the server afterwards), because it locks login/register for 15 minutes.\n\nPart 3: each iteration uses a new email address so the per-account lockout does not interfere; see the Account Lockout Demo collection for that feature.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "Repeated failed login attempt",
       "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A different email each time, so the per-account lockout never triggers and",
+              "// this collection shows only the per-IP rate limit.",
+              "pm.variables.set(\"attackerEmail\", `attacker.${Date.now()}.${pm.info.iteration}@hustlehub.test`);"
+            ]
+          }
+        },
         {
           "listen": "test",
           "script": {
@@ -53,7 +64,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"attacker@hustlehub.test\",\n  \"password\": \"WrongPass1!\"\n}",
+          "raw": "{\n  \"email\": \"{{attackerEmail}}\",\n  \"password\": \"WrongPass1!\"\n}",
           "options": {
             "raw": {
               "language": "json"

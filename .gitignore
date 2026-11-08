@@ -9,3 +9,6 @@
 *.log
 Thumbs.db
 .DS_Store
+
+# Local JSON log files written by the API
+**/logs/

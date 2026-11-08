@@ -10,7 +10,8 @@
     "test:all": "npm run test:server && npm run test:client",
     "test:api": "newman run \"../PostmanCollection/HustleHub Part 2 - Secure Marketplace API.postman_collection.json\" --insecure -r cli,htmlextra --reporter-htmlextra-export ../NewmanReports/newman-report.html --reporter-htmlextra-title \"HustleHub Part 2 - Newman Report\"",
     "test:ratelimit": "newman run \"../PostmanCollection/HustleHub Part 2 - Rate Limit Demo.postman_collection.json\" -n 35 --insecure -r cli,htmlextra --reporter-htmlextra-export ../NewmanReports/newman-ratelimit-report.html",
-    "seed": "npm run seed --prefix server"
+    "seed": "npm run seed --prefix server",
+    "test:lockout": "newman run \"../PostmanCollection/HustleHub Part 3 - Account Lockout Demo.postman_collection.json\" --insecure -r cli,htmlextra --reporter-htmlextra-export ../NewmanReports/newman-lockout-report.html"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

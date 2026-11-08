@@ -14,12 +14,17 @@ const incomeRoutes = require("./routes/incomeRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 const apiUsageMiddleware = require("./middleware/apiUsageMiddleware");
+const requestLogger = require("./middleware/requestLogger");
+const { logEvent } = require("./utils/logger");
 
 const app = express();
 const clientOrigin = process.env.CLIENT_ORIGIN || "https://localhost:5173";
 app.disable("x-powered-by");
 
 const isDevelopment = process.env.NODE_ENV === "development";
+
+// Request ID + access log for every request (see middleware/requestLogger.js).
+app.use(requestLogger);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -44,14 +49,22 @@ const loginLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { message: "Too many authentication attempts. Try again later." }
+  message: { message: "Too many authentication attempts. Try again later." },
+  handler: (req, res, next, options) => {
+    logEvent("warn", "security.rate_limit.auth", req, { method: req.method, route: req.baseUrl });
+    res.status(options.statusCode).json(options.message);
+  }
 });
 const bookingLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { message: "Booking limit reached. Try again later." }
+  message: { message: "Booking limit reached. Try again later." },
+  handler: (req, res, next, options) => {
+    logEvent("warn", "security.rate_limit.booking", req, { method: req.method, route: req.baseUrl });
+    res.status(options.statusCode).json(options.message);
+  }
 });
 
 
@@ -67,6 +80,10 @@ app.use(cookieParser());
 app.use((req, res, next) => {
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method) &&
       req.headers.origin && req.headers.origin !== clientOrigin) {
+    logEvent("warn", "security.origin.blocked", req, {
+      method: req.method,
+      origin: String(req.headers.origin).replace(/[^\w.:/-]/g, "").slice(0, 100)
+    });
     return res.status(403).json({ message: "Request origin is not allowed." });
   }
   next();

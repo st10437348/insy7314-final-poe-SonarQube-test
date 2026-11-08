@@ -63,6 +63,13 @@ const userSchema = new mongoose.Schema(
       default: true
     },
 
+    // Increased on logout, deactivation and role change. Every JWT carries the
+    // version it was issued with; a mismatch means the token has been revoked.
+    tokenVersion: {
+      type: Number,
+      default: 0
+    },
+
     provider: {
       type: String,
       enum: ["local", "google", "microsoft"],

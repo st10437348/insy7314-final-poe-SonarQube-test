@@ -3,6 +3,7 @@ const User = require("../models/User");
 const Booking = require("../models/Booking");
 const ApiUsage = require("../models/ApiUsage");
 const Transaction = require("../models/Transaction");
+const { logEvent } = require("../utils/logger");
 
 const validEmail = (value) => {
   if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
@@ -144,6 +145,10 @@ exports.updateAdminUser = async (req, res, next) => {
             user.email = email.trim().toLowerCase();
         }
 
+        // Security feature 2: a role change or deactivation ends the user's existing sessions.
+        const roleChanged = role !== undefined && role !== user.role;
+        const deactivated = isActive === false && user.isActive !== false;
+
         if (role !== undefined) {
             user.role = role;
         }
@@ -160,7 +165,19 @@ exports.updateAdminUser = async (req, res, next) => {
             user.isActive = isActive;
         }
 
+        if (roleChanged || deactivated) {
+            user.tokenVersion = (user.tokenVersion || 0) + 1;
+        }
+
         const updatedUser = await user.save();
+        logEvent(roleChanged || deactivated ? "warn" : "info", "admin.user.updated", req, {
+            targetUserId: updatedUser._id,
+            changedFields: Object.keys({ name, email, role, bio, skills, isActive })
+                .filter((field) => ({ name, email, role, bio, skills, isActive })[field] !== undefined),
+            newRole: roleChanged ? updatedUser.role : undefined,
+            deactivated,
+            sessionsRevoked: roleChanged || deactivated
+        });
 
         res.status(200).json({
             message: "User updated successfully.",
