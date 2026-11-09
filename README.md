@@ -38,6 +38,7 @@ HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. 
 16. [Part 3 income, CI and static analysis](#16-part-3-income-ci-and-static-analysis)
 17. [Logging and monitoring](#17-logging-and-monitoring)
 18. [Additional security features](#18-additional-security-features)
+19. [Docker Compose and container CI](#19-docker-compose-and-container-ci)
 
 ---
 
@@ -66,7 +67,7 @@ Part 3 was split by marking criterion.
 
 | Area (marks) | Owner | What was delivered | README section |
 | --- | --- | --- | --- |
-| Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | The application is dockerized into containers | [6](#6-backend-api) |
+| Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | Backend and frontend Dockerfiles, Compose orchestration, and a required container smoke test in CI | [19](#19-docker-compose-and-container-ci) |
 | Security Review in README (10) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
 | README Updates (5) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
 | CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
@@ -866,8 +867,9 @@ The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request
 | `backend` | Installs `Project/server` dependencies, checks high or critical **runtime** dependency advisories, runs the Node.js backend test suite, and parses every backend JavaScript file with `node --check`. | A dependency audit, test or syntax check fails. |
 | `frontend` | Installs `Project/client` dependencies, checks high or critical runtime advisories, runs ESLint and Vitest, then builds the production React bundle with Vite. | An audit, lint rule, test or build fails. |
 | `api-integration` | Starts a health-checked MongoDB 7 service, generates a temporary JWT secret, installs the root and backend packages, audits root runtime dependencies, creates the test HTTPS certificate, seeds only the `hustlehub_ci` database, starts the HTTPS API, waits for its health endpoint, and runs the Postman collection through Newman. | Installation, audit, database seed, API startup, health check or a Newman assertion fails. |
+| `containers` | Builds the backend and production frontend Docker images, starts both with MongoDB through Compose, waits for all three health checks, then checks the direct API, the frontend route and the proxied API. Uploads container status and logs. | A build, startup, health check or HTTP smoke test fails. |
 | `sonarqube` | After `backend` and `frontend` succeed, installs both packages, generates backend and frontend LCOV reports, checks the Cloud credentials, runs `SonarSource/sonarqube-scan-action@v8.3.0`, and waits for the quality gate. | Required configuration is missing, analysis fails, or the Cloud quality gate fails. This job is **required** in this repository. |
-| `ci-result` | Runs even when an earlier job fails. It requires `backend`, `frontend`, `api-integration` and `sonarqube` all to succeed. | Any of the four required jobs fails or is skipped. |
+| `ci-result` | Runs even when an earlier job fails. It requires `backend`, `frontend`, `api-integration`, `containers` and `sonarqube` all to succeed. | Any of the five required jobs fails or is skipped. |
 
 `api-integration` uploads the Newman HTML report as a `newman-report` artifact even when the test job fails; on failure it also uploads the API log. The MongoDB service and generated secret exist only for that CI run. The workflow does not deploy the application.
 
@@ -875,7 +877,7 @@ The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request
 
 #### Classroom50 CI and Autograde workflows
 
-The Classroom50 repository has the same three core application checks: `backend`, `frontend` and `api-integration`. Its `sonarqube` job is conditional because the organization blocks the Cloud connection; its `ci-result` requires a skip when SonarQube is disabled and a pass when it is enabled. Its separate `Autograde` workflow runs on `main` pushes and `submit/*` tags and delegates to Classroom50's reusable grading workflow. This copied repository also contains that Autograde workflow file, but it is separate from the application CI and SonarQube quality gate.
+The Classroom50 repository has the same four required application checks: `backend`, `frontend`, `api-integration` and `containers`. Its `sonarqube` job is conditional because the organization blocks the Cloud connection; its `ci-result` requires a skip when SonarQube is disabled and a pass when it is enabled. Its separate `Autograde` workflow runs on `main` pushes and `submit/*` tags and delegates to Classroom50's reusable grading workflow. This copied repository also contains that Autograde workflow file, but it is separate from the application CI and SonarQube quality gate.
 
 The [Sonar project configuration](sonar-project.properties) scans `Project/server` and `Project/client/src`, identifies test directories separately, and imports backend and frontend LCOV reports. Generated files, dependencies and tests are excluded from source analysis. One-off backend CLI scripts are excluded from **coverage**; application controllers, models, pages and the frontend entry point remain in scope. This distinction matters because an untested source file appears as uncovered in SonarQube Cloud even if a test runner's own report lists only imported files. CodeQL was removed as an additional scanner because GitHub code scanning was unavailable here; SonarQube Cloud supplies the static analysis and quality gate.
 
@@ -1106,3 +1108,40 @@ During the SonarQube review (section 16), the team also fixed three NoSQL-inject
 ![Better Stack auth.account.locked event](Screenshots/28.1-betterstack-security-events.png)
 
 ![Better Stack auth.token.revoked event](Screenshots/28.2-betterstack-security-events.png)
+
+---
+
+## 19. Docker Compose and container CI
+
+The [Compose stack](compose.yaml) runs three services. `mongo` stores application data in a named volume and is reachable only inside the Compose network. `api` uses the [backend Dockerfile](Project/server/Dockerfile) with Node.js 22 and production dependencies, generates a local HTTPS certificate when it starts, and listens on `0.0.0.0:5000` inside its container. `client` uses a multi-stage [frontend Dockerfile](Project/client/Dockerfile): Vite builds the React application, then Nginx serves the built files over HTTPS on host port 5173. Nginx sends `/api/` requests to the backend over the internal network, so the browser uses one origin for the page and API. All three services have health checks; Compose waits for MongoDB before the API and for the API before the client.
+
+The local certificates are self-signed demonstration certificates. Browser access to `https://localhost:5173` therefore requires accepting the certificate warning. The API is also available directly at `https://localhost:5000/api/test`. The MongoDB port is not published to the host. The JWT secret is supplied at runtime and is not built into either image. Optional Better Stack credentials are also supplied at runtime; without them, the API continues to log to the container output.
+
+### Run the containers
+
+From the repository root in PowerShell, generate a fresh secret and start the stack:
+
+```powershell
+$secretBytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($secretBytes)
+$env:JWT_SECRET = [BitConverter]::ToString($secretBytes).Replace('-', '').ToLowerInvariant()
+docker compose up --build --wait
+docker compose ps
+```
+
+Open `https://localhost:5173`. The following requests check both the frontend and the proxied API:
+
+```powershell
+curl.exe -k https://localhost:5173/login
+curl.exe -k https://localhost:5173/api/test
+```
+
+`docker compose logs api client` shows container output. `docker compose down` stops the stack while keeping the MongoDB volume; `docker compose down -v` also deletes the stored database.
+
+### GitHub Actions container check
+
+The required `containers` job in [CI and static analysis](.github/workflows/ci.yml) creates an isolated JWT secret on its Ubuntu runner, validates the Compose file, builds both application images, and runs the stack until all three health checks pass. It then requests the backend directly, requests the frontend's `/login` route, and requests `/api/test` through the Nginx proxy. A failed build, unhealthy container or failed HTTP request fails the job. Container status and logs are uploaded as the `docker-compose-evidence` artifact even on failure; the job then removes its disposable containers and database volume. The final `ci-result` check requires this job to succeed alongside the other required jobs. This pipeline builds and runs the containers; it does not deploy them.
+
+[Screenshot: GitHub Actions `containers` job showing the two application containers and MongoDB healthy, with the HTTP smoke checks passing.]
+
+[Screenshot: `docker compose ps` showing the `api`, `client` and `mongo` services running and healthy.]

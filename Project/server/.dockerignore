@@ -1,0 +1,7 @@
+node_modules
+coverage
+certificates
+logs
+test
+.env
+*.log

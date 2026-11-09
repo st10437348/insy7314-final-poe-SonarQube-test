@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: ./Project/server
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_PROD: hustlehub_container
+      CLIENT_ORIGIN: https://localhost:5173
+      JWT_SECRET: ${JWT_SECRET:?Set a random JWT_SECRET in your environment or an ignored .env file}
+      JWT_EXPIRES_IN: 7d
+      LOG_TO_FILE: "false"
+      BETTER_STACK_SOURCE_TOKEN: ${BETTER_STACK_SOURCE_TOKEN:-}
+      BETTER_STACK_INGESTING_HOST: ${BETTER_STACK_INGESTING_HOST:-}
+    ports:
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('https').get('https://127.0.0.1:5000/api/test',{rejectUnauthorized:false},res=>process.exit(res.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  client:
+    build:
+      context: ./Project/client
+      args:
+        VITE_API_URL: https://localhost:5173
+    ports:
+      - "127.0.0.1:5173:443"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--insecure", "https://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  mongo_data:
