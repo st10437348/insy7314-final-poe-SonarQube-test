@@ -7,9 +7,17 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
-COPY --chown=node:node . .
+COPY --chown=node:node app.js server.js ./
+COPY --chown=node:node config/*.js ./config/
+COPY --chown=node:node controllers/*.js ./controllers/
+COPY --chown=node:node middleware/*.js ./middleware/
+COPY --chown=node:node models/*.js ./models/
+COPY --chown=node:node routes/*.js ./routes/
+COPY --chown=node:node services/*.js ./services/
+COPY --chown=node:node utils/*.js ./utils/
+COPY --chown=node:node scripts/generateCertificate.js scripts/localhost.cnf ./scripts/
 RUN mkdir -p certificates logs && chown -R node:node /app/server
 
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=5000

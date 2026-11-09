@@ -922,6 +922,16 @@ A later Cloud issue list showed **one open Low security issue**: possible log in
 
 [Screenshot: SonarQube Cloud issue list showing the Low log-injection finding in `errorMiddleware.js` before its fix.]
 
+#### Dockerfile findings from the container scan
+
+After Docker support was added, SonarQube Cloud reported two open issues in `Project/server/Dockerfile`: a High security finding for recursively copying the whole build context and a Medium security finding for allowing npm lifecycle scripts during installation. The GitHub Actions Docker Compose smoke test passed on that run, but the SonarQube Cloud quality gate failed.
+
+The backend image now copies runtime JavaScript files from specified source directories plus the certificate generator and configuration, so local `.env` files, tests, seed data and other build-context contents cannot be swept into the image by a broad `COPY . .`. Its production dependency install uses `npm ci --ignore-scripts`; the backend lockfile does not mark any dependency as requiring an install script. A local rebuild confirmed that MongoDB, the API and the client became healthy, and the direct API, proxied API and login page all returned HTTP 200. A new SonarQube Cloud scan is still needed to confirm the two findings close and the quality gate passes.
+
+[Screenshot: SonarQube Cloud test-project issue list showing both Dockerfile findings before the fix.]
+
+[Screenshot: GitHub Actions run showing the Docker Compose smoke test passing while the SonarQube Cloud quality gate failed.]
+
 SonarQube Cloud findings guided the code changes above. The scanner and gate continue to report remaining risks and coverage gaps for this test repository; the Classroom50 repository cannot currently connect to the service.
 
 ## 17. Logging and monitoring
