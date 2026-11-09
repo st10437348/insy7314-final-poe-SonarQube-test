@@ -1022,9 +1022,10 @@ Logs are only useful if they can be trusted and do not become a data leak themse
    BETTER_STACK_INGESTING_HOST=s123456.eu-nbg-2.betterstackdata.com
    ```
 
-4. Restart the API. The `server.started` event shows `"cloudLogging":"better-stack"` and appears in Better Stack's **Live tail** within a few seconds ([Better Stack Winston guide](https://betterstack.com/docs/logs/javascript/winston/)).
+4. For local `npm run dev`, restart the API. For Docker Compose, put the same two values in an ignored `.env` **beside `compose.yaml`**, or export them in the PowerShell session that starts Compose. Compose does not automatically read `Project/.env`. Keep `JWT_SECRET` set as described in section 19, then run `docker compose up -d --build --wait` to recreate the API with the new values.
+5. Check `docker compose logs --tail=30 api` for the `server.started` event with `"cloudLogging":"better-stack"`. This shows the cloud transport was enabled; confirm delivery in Better Stack's **Live tail** ([Better Stack Winston guide](https://betterstack.com/docs/logs/javascript/winston/)).
 
-Useful searches in Better Stack: `event:auth.login.failed`, `level:error`, `category:transaction`, `event:auth.account.locked`, or a `requestId` to see everything from one request. The token is a secret: it lives only in `.env` (or the Docker environment / a GitHub Actions secret) and is never committed. Without these two values the app still logs to the terminal and local files.
+Useful searches in Better Stack: `event:auth.login.failed`, `level:error`, `category:transaction`, `event:auth.account.locked`, or a `requestId` to see everything from one request. The token is a secret: it lives only in `.env` (or the Docker environment / a GitHub Actions secret) and is never committed. Without these two values the app still logs to the terminal. Local file logs are also available outside Docker; Compose sets `LOG_TO_FILE=false` so container logs go to stdout.
 
 ### 17.5 Logging evidence
 
