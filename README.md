@@ -16,12 +16,31 @@ HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. 
 
 > The Part 1 architecture report, diagram and screenshots are kept in [`docs/Part1-Report.md`](docs/Part1-Report.md).
 
+
+---
+
+## Part 3 contributions
+
+Part 3 work was split by marking criterion.
+
+| Area (marks) | Owner | What was delivered | README section |
+| --- | --- | --- | --- |
+| Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | Backend and frontend Dockerfiles, Compose orchestration, and a required container smoke test in CI | [19](#19-docker-compose-and-container-ci) |
+| Security Review in README (10) | `Ruan Helgaard Hartman` | Threats and implemented protections | [Security review](#security-review-report) |
+| README Updates (5) | `Ruan Helgaard Hartman` | Project documentation and evidence | [README contents](#table-of-contents) |
+| CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
+| Static Code Analysis (10) | `Alexandro Ornelas` | ESLint, backend syntax checks and SonarQube Cloud analysis with a required quality gate | [16](#16-part-3-income-ci-and-static-analysis) |
+| Logging (10) | `Caleb Forbes` | Structured request, business and security events with Better Stack transport and redaction | [17](#17-logging-and-monitoring) |
+| 2 Security Features (15) | `Caleb Forbes` | Per-account login lockout and server-side session revocation | [18](#18-additional-security-features) |
+| Tax + Income Dashboard (20) | `Clifford Naude` | SARS 2027 progressive estimate and responsive earnings dashboard | [16](#16-part-3-income-ci-and-static-analysis) |
+
 ---
 
 ## Table of contents
 
 **Part 3**
 
+- [Part 3 contributions](#part-3-contributions)
 - [Part 3 income, CI and static analysis](#16-part-3-income-ci-and-static-analysis)
 - [Logging and monitoring](#17-logging-and-monitoring)
 - [Additional security features](#18-additional-security-features)
@@ -60,7 +79,9 @@ The estimate uses the [SARS 2027 individual tax brackets and primary rebate](htt
 
 New simulated transactions deduct the 10% platform fee and record zero tax withheld. Older transactions retain their recorded amounts; the income page shows any historical simulated tax deductions separately. The monthly chart shows earnings after platform fees and before estimated tax. The income cards and chart accommodate empty months, mobile screens and large currency values.
 
-[Screenshot: Part 3 income and tax dashboard showing the tax-year heading, summary cards, twelve-month chart and calculation breakdown.]
+![Part 3 income and tax dashboard with tax-year summary cards and monthly chart](Screenshots/part3-income-tax-dashboard.png)
+
+![Part 3 income breakdown and explanation of the SARS tax estimate](Screenshots/part3-income-tax-breakdown.png)
 
 ### Repository used for SonarQube Cloud
 
@@ -85,7 +106,13 @@ The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request
 
 `api-integration` uploads the Newman HTML report as a `newman-report` artifact even when the test job fails; on failure it also uploads the API log. The MongoDB service and generated secret exist only for that CI run. The workflow does not deploy the application.
 
-[Screenshot: This repository's GitHub Actions “CI and static analysis” run showing backend, frontend, API integration, SonarQube Cloud quality gate and `ci-result` statuses.]
+![GitHub Actions SonarQube Cloud quality-gate job and required checks passing in the test repository](Screenshots/part3-ci-sonar-quality-gate-passed.png)
+
+![SonarQube test repository showing all seven successful checks](Screenshots/part3-ci-all-checks-passed.png)
+
+![Successful CI workflow run with backend, frontend, API integration, Docker and SonarQube jobs](Screenshots/part3-ci-successful-run.png)
+
+![CI artifacts containing Docker Compose evidence and the Newman report](Screenshots/part3-ci-artifacts.png)
 
 #### Classroom50 CI and Autograde workflows
 
@@ -97,13 +124,13 @@ The [Sonar project configuration](sonar-project.properties) scans `Project/serve
 
 ### SonarQube Cloud analysis and fixes
 
-The values below are **historical Cloud snapshots from this test repository**. They describe what SonarQube Cloud displayed at different scans, not a current measurement of the copied 8 November changes. A green new-code gate does not mean every finding in overall code has been resolved.
+The earlier values below are historical Cloud snapshots from this test repository. The latest supplied snapshot is identified by commit below. A green quality gate does not mean every dependency risk has been resolved.
 
 #### Initial project health and code findings
 
 The first Cloud overview showed a passing quality gate alongside **38 overall-code issues**, **43.9% overall coverage** and **1.4% duplication**. Its security snapshot showed rating **E** and four security issues; reliability was **C** with 34 issues; maintainability was **A** with four issues; security hotspots showed **A** and zero hotspots. This prompted a review of the issue list despite the passing gate.
 
-[Screenshot: SonarQube Cloud test-project overview showing the initial quality gate, 38 issues, 43.9% coverage and 1.4% duplication.]
+![Historical SonarQube Cloud overview: 38 issues, 43.9% coverage, 1.4% duplication](Screenshots/part3-sonar-initial-overview.png)
 
 | Cloud finding | Change made in the application |
 | --- | --- |
@@ -112,43 +139,72 @@ The first Cloud overview showed a passing quality gate alongside **38 overall-co
 | Super-linear email-validation regex in the admin controller | Replaced the expression with bounded, deterministic checks so long crafted input does not cause excessive backtracking. |
 | Number parsing style and reliability findings in the create-gig form | Uses `Number.parseFloat`, `Number.parseInt` and `Number.isNaN` for the numeric inputs. |
 
-[Screenshot: SonarQube Cloud issue list showing the three original Blocker NoSQL injection findings and the affected files.]
+![Historical SonarQube Cloud list of three Blocker NoSQL injection findings](Screenshots/part3-sonar-initial-nosql-issues.png)
 
 #### Coverage and the quality gate
 
 A later Cloud scan reported **30.26% coverage on 74 new lines**, below the Sonar way gate's **80% new-code coverage** condition. It showed **zero new issues**, but the gate still failed. Backend coverage had been imported while frontend source appeared at 0% because its LCOV report was missing from the scan. The CI scan was changed to generate and import both reports, and tests were added around changed page loaders, navigation and validation. A later GitHub Actions run showed the SonarQube Cloud quality-gate job passing. That passing run does not establish a new overall-coverage percentage by itself.
 
-The Cloud coverage views subsequently showed **57.1%**, then **59% overall coverage**. The 59% view identified large gaps in admin, user and transaction controllers and in several admin, booking and transaction pages. Tests were added for access control, status changes, filtering, deletion and rendered user interactions. Coverage reporting was expanded to include all frontend source files; an unused `AppRoutes.jsx` file with stale imports was removed. The API helper was also fixed to preserve default JSON headers when callers provide other headers. A further Cloud scan is needed to establish the effect of those later changes on the overall figure.
+The Cloud coverage views subsequently showed **57.1%**, then **59% overall coverage**. The 59% view identified large gaps in admin, user and transaction controllers and in several admin, booking and transaction pages. Tests were added for access control, status changes, filtering, deletion and rendered user interactions. Coverage reporting was expanded to include all frontend source files; an unused `AppRoutes.jsx` file with stale imports was removed. The API helper was also fixed to preserve default JSON headers when callers provide other headers. The later supplied Cloud scan for commit `5c255da6` reports 83.5% overall coverage; it is shown in the latest snapshot below.
 
-[Screenshot: SonarQube Cloud failed quality gate showing 30.26% new-code coverage against the 80% condition.]
+![Historical failed SonarQube quality gate: 30.26% new-code coverage against 80% required](Screenshots/part3-sonar-failed-coverage-gate.png)
+
+![Historical SonarQube Cloud overall coverage at 57.1%](Screenshots/part3-sonar-overall-coverage-57-percent.png)
+
+![Historical SonarQube Cloud server coverage at 59.0%](Screenshots/part3-sonar-server-coverage-59-percent.png)
 
 [Screenshot: SonarQube Cloud overall coverage view showing the later 59% figure and the lowest-covered application files.]
 
 #### Dependency risks and the remaining security finding
 
-SonarQube Cloud displayed **89 dependency-risk entries** before the dependency review. The application did not import the direct `node.js@0.0.1-security` npm package, so it was removed; Node.js comes from the runtime, not that package. Dependency locks were updated to patched `handlebars`, `node-forge`, `qs` and `lodash` versions where applicable. Runtime dependency audits were added to CI. The **current Cloud dependency-risk count has not been verified**, so the earlier 89 is a baseline rather than a claim that all risks were cleared.
+SonarQube Cloud displayed **89 dependency-risk entries** before the dependency review. The application did not import the direct `node.js@0.0.1-security` npm package, so it was removed; Node.js comes from the runtime, not that package. Dependency locks were updated to patched `handlebars`, `node-forge`, `qs` and `lodash` versions where applicable. Runtime dependency audits were added to CI. The earlier 89 is a historical baseline. The later supplied Cloud scan reports **20 dependency risks remaining**, so the passing quality gate does not mean all dependency risks were cleared.
 
-A later Cloud issue list showed **one open Low security issue**: possible log injection in `Project/server/middleware/errorMiddleware.js`. The fallback logger previously included the request URL and error name, which could contain attacker-controlled newlines. It now logs a generated incident ID and returns that ID in the `X-Incident-Id` response header while keeping the same safe 500 response body. A regression test checks that forged newline text is absent from the log. The screenshot of the open issue predates this fix; a later SonarQube Cloud scan has not been provided to confirm closure.
+The supplied SonarQube Cloud dependency-risk list explains the remaining **20 entries** (several entries refer to different versions of the same package or different findings in one package):
+
+| Dependency scope | SonarQube Cloud findings | Why they remain and what is still needed |
+| --- | --- | --- |
+| Development dependencies: **19 entries** | Transitive versions of `flatted`, `underscore`, `csv-parse`, `jose`, `picomatch`, `@faker-js/faker`, `uuid`, `uri-js`, `file-type` and `braces`. Most come through Newman or its HTML reporter; `picomatch@4.0.7` also comes through frontend Vite/Vitest tooling. The `braces` entry is marked **withdrawn** in the supplied list, so it should not be described as an active vulnerability. | These packages are installed for API tests, reports, frontend builds or tests. They are not in the production backend image, which installs with `--omit=dev`, or the final frontend image, which serves built assets with Nginx. They still run in development and CI. Changing an application source file cannot patch a transitive package. The parent tools need compatible updates or carefully tested overrides; the team has not verified a change that clears these Cloud findings while preserving the required checks. |
+| Runtime dependency: **1 entry** | `sift@17.1.3` (CVE-2026-85625, prototype pollution), pulled in by server-side Mongoose. | This is included with the running backend and is **not** covered by the development-only explanation. It remains an open risk. A compatible Mongoose/sift dependency update needs to be selected, tested against the application's MongoDB queries, and rescanned in SonarQube Cloud. |
+
+The 20 entries are **not proven unfixable**. They were left open because a safe, tested dependency change had not been established for that scan; the runtime `sift` finding deserves priority. The passing quality gate and zero open *code issues* in the later Cloud screenshots do not clear these separate dependency-risk entries.
+
+[Screenshot: SonarQube Cloud dependency-risk list showing the 20 remaining entries, including the runtime `sift` finding.]
+
+A later Cloud issue list showed **one open Low security issue**: possible log injection in `Project/server/middleware/errorMiddleware.js`. The fallback logger previously included the request URL and error name, which could contain attacker-controlled newlines. It now logs a generated incident ID and returns that ID in the `X-Incident-Id` response header while keeping the same safe 500 response body. A regression test checks that forged newline text is absent from the log. The screenshot of the open issue predates this fix; the later supplied Cloud view shows zero open or confirmed issues, without listing individual issue histories.
 
 [Screenshot: SonarQube Cloud dependency-risk view showing the original 89 entries and the listed packages.]
 
-[Screenshot: SonarQube Cloud issue list showing the Low log-injection finding in `errorMiddleware.js` before its fix.]
+![Historical SonarQube Cloud log-injection finding before the fix](Screenshots/part3-sonar-log-injection.png)
 
 #### Dockerfile findings from the container scan
 
 After Docker support was added, SonarQube Cloud reported two open issues in `Project/server/Dockerfile`: a High security finding for recursively copying the whole build context and a Medium security finding for allowing npm lifecycle scripts during installation. The GitHub Actions Docker Compose smoke test passed on that run, but the SonarQube Cloud quality gate failed.
 
-The backend image now copies runtime JavaScript files from specified source directories plus the certificate generator, admin bootstrap command and certificate configuration, so local `.env` files, tests, seed data and other build-context contents cannot be swept into the image by a broad `COPY . .`. Its production dependency install uses `npm ci --ignore-scripts`; the backend lockfile does not mark any dependency as requiring an install script. A local rebuild confirmed that MongoDB, the API and the client became healthy, and the direct API, proxied API and login page all returned HTTP 200. A new SonarQube Cloud scan is still needed to confirm the two findings close and the quality gate passes.
+The backend image now copies runtime JavaScript files from specified source directories plus the certificate generator, admin bootstrap command and certificate configuration, so local `.env` files, tests, seed data and other build-context contents cannot be swept into the image by a broad `COPY . .`. Its production dependency install uses `npm ci --ignore-scripts`; the backend lockfile does not mark any dependency as requiring an install script. A local rebuild confirmed that MongoDB, the API and the client became healthy, and the direct API, proxied API and login page all returned HTTP 200. The later supplied Cloud scan shows a passing quality gate and zero open or confirmed issues; it does not display the individual finding histories.
 
-[Screenshot: SonarQube Cloud test-project issue list showing both Dockerfile findings before the fix.]
+![Historical SonarQube Cloud Dockerfile findings before the fix](Screenshots/part3-sonar-dockerfile-issues.png)
 
-[Screenshot: GitHub Actions run showing the Docker Compose smoke test passing while the SonarQube Cloud quality gate failed.]
+![GitHub checks showing Docker Compose smoke test passing while the SonarQube quality gate failed](Screenshots/part3-ci-docker-passed-sonar-failed.png)
 
 #### Admin bootstrap email validation finding
 
-A later SonarQube Cloud scan flagged the email-format expression in `Project/server/scripts/bootstrapAdmin.js` for possible super-linear backtracking. The admin command now checks the length, local part and domain labels with bounded string operations instead of that regular expression. It still accepts ordinary admin addresses such as `admin2@hustlehub.test`; password rules and account-lockout clearing are unchanged. A subsequent Cloud scan is needed to confirm the issue closes.
+A later SonarQube Cloud scan flagged the email-format expression in `Project/server/scripts/bootstrapAdmin.js` for possible super-linear backtracking. The admin command now checks the length, local part and domain labels with bounded string operations instead of that regular expression. It still accepts ordinary admin addresses such as `admin2@hustlehub.test`; password rules and account-lockout clearing are unchanged. The later supplied Cloud view shows zero open or confirmed issues; it does not display this finding's individual history.
 
-[Screenshot: SonarQube Cloud issue detail showing the super-linear regular expression finding in `bootstrapAdmin.js` before the fix.]
+![Historical SonarQube Cloud admin email regex finding before the fix](Screenshots/part3-sonar-bootstrap-admin-regex.png)
+
+#### Later NoSQL injection findings
+
+A later Cloud scan showed two Blocker NoSQL injection findings in the marketplace gig query and completed-gig synchronisation. The marketplace now queries MongoDB with fixed fields and applies request search, category and price filters to the returned gigs. The synchronisation converts each stored gig ID to a validated `ObjectId` before an individual update. Backend regression tests cover these changes; the later supplied Cloud view shows zero open or confirmed issues, without displaying each finding's individual history.
+
+![Historical SonarQube Cloud list of the two later Blocker NoSQL injection findings before the fixes](Screenshots/part3-sonar-later-nosql-issues.png)
+
+#### Latest supplied SonarQube Cloud snapshot
+
+The supplied screenshots show the SonarQube test repository's analysis for commit `5c255da6`. The quality gate passed, overall coverage was **83.5%**, duplication was **1.3%**, and the summary showed zero open security, reliability or maintainability issues. The issue list, filtered to Open and Confirmed, showed **zero issues**. The summary still showed **20 dependency risks**. These are SonarQube Cloud results for the test repository, not a scan of the Classroom50 repository.
+
+![Latest supplied SonarQube Cloud summary showing a passing quality gate, 83.5% coverage and 20 dependency risks](Screenshots/part3-sonar-latest-summary.png)
+
+![Latest supplied SonarQube Cloud issue list showing zero Open or Confirmed issues](Screenshots/part3-sonar-zero-open-issues.png)
 
 SonarQube Cloud findings guided the code changes above. The scanner and gate continue to report remaining risks and coverage gaps for this test repository; the Classroom50 repository cannot currently connect to the service.
 
@@ -458,20 +514,6 @@ Part 2 was split by marking criterion.
 | Rate limiting and security headers (20) | `Alexandro Ornelas` | `express-rate-limit` on auth and booking routes, Helmet configuration, API and frontend Content Security Policies, CORS | [9](#9-rate-limiting-and-security-headers) |
 | React frontend (10) | `Clifford Naude` | React 19 + Vite app, auth context, protected and role routes, client/freelancer/admin pages, error and loading states, HTTPS dev server | [10](#10-react-frontend) |
 | Backend testing, frontend testing, README, GitHub (20) |  `Caleb Forbes` | Updated Part 1 tests for cookie auth; new RBAC/security tests; Part 2 Postman collection and Newman scripts; rate-limit demo; Vitest + React Testing Library suite; README; repository management | [11](#11-testing) |
-
-
-Part 3 was split by marking criterion.
-
-| Area (marks) | Owner | What was delivered | README section |
-| --- | --- | --- | --- |
-| Docker Backend and Frontend (10) | `Ruan Helgaard Hartman` | Backend and frontend Dockerfiles, Compose orchestration, and a required container smoke test in CI | [19](#19-docker-compose-and-container-ci) |
-| Security Review in README (10) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
-| README Updates (5) | `Ruan Helgaard Hartman` | Updated README | [6](#6-backend-api) |
-| CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
-| Static Code Analysis (10) | `Alexandro Ornelas` | ESLint, backend syntax checks and SonarQube Cloud analysis with a required quality gate | [16](#16-part-3-income-ci-and-static-analysis) |
-| Logging (10) | `Caleb Forbes` | Structured request, business and security events with Better Stack transport and redaction | [17](#17-logging-and-monitoring) |
-| 2 Security Features (15) | `Caleb Forbes` | Per-account login lockout and server-side session revocation | [18](#18-additional-security-features) |
-| Tax + Income Dashboard (20) | `Clifford Naude` | SARS 2027 progressive estimate and responsive earnings dashboard | [16](#16-part-3-income-ci-and-static-analysis) |
 
 ---
 
