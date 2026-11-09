@@ -33,7 +33,6 @@ const originals = {
   gigFindOne: Gig.findOne,
   gigFindOneAndUpdate: Gig.findOneAndUpdate,
   gigUpdateOne: Gig.updateOne,
-  gigUpdateMany: Gig.updateMany,
   bookingCreate: Booking.create,
   bookingFindById: Booking.findById,
   bookingDistinct: Booking.distinct,
@@ -118,7 +117,6 @@ test.afterEach(() => {
   Gig.findOne = originals.gigFindOne;
   Gig.findOneAndUpdate = originals.gigFindOneAndUpdate;
   Gig.updateOne = originals.gigUpdateOne;
-  Gig.updateMany = originals.gigUpdateMany;
   Booking.create = originals.bookingCreate;
   Booking.findById = originals.bookingFindById;
   Booking.distinct = originals.bookingDistinct;
@@ -294,17 +292,23 @@ test("a gig with a pending or accepted booking is hidden and cannot be booked di
     availabilityFilter = filter;
     return [IDS.gig];
   };
+  const availableId = "64b0000000000000000000a2";
   Gig.find = (filter) => {
     marketplaceFilter = filter;
-    const query = originals.gigFind.call(Gig, filter);
-    query.exec = async () => [];
-    return query;
+    return {
+      populate() { return this; },
+      sort: async () => [
+        { _id: IDS.gig, title: "Booked gig", category: "Design", price: 100 },
+        { _id: availableId, title: "Available gig", category: "Design", price: 100 }
+      ]
+    };
   };
 
   const list = await request({ path: "/api/gigs" });
   assert.equal(list.status, 200);
   assert.deepEqual(availabilityFilter, { status: { $in: ["pending", "accepted", "in_progress", "completed"] } });
-  assert.deepEqual(marketplaceFilter._id.$nin, [IDS.gig]);
+  assert.deepEqual(marketplaceFilter, { status: "active", isActive: true });
+  assert.deepEqual(list.body.gigs.map((gig) => gig._id), [availableId]);
 
   Booking.exists = async () => ({ _id: IDS.booking });
   Gig.findOneAndUpdate = () => { throw new Error("Unavailable gig must not be loaded"); };
@@ -371,7 +375,7 @@ test("completing a booking permanently marks its gig completed", async () => {
   assert.equal(response.status, 200);
   assert.equal(booking.status, "completed");
   assert.equal(transactionStatus, "completed");
-  assert.equal(gigUpdate.filter._id, IDS.gig);
+  assert.equal(gigUpdate.filter._id.toString(), IDS.gig);
   assert.deepEqual(gigUpdate.update, { $set: { status: "completed", isActive: false } });
 });
 
@@ -413,13 +417,15 @@ test("previously completed bookings are synchronized to permanent gig status", a
   Booking.distinct = async (field, filter) => {
     assert.equal(field, "gigId");
     assert.deepEqual(filter, { status: "completed" });
-    return [IDS.gig];
+    return [IDS.gig, { $ne: null }];
   };
-  let updated;
-  Gig.updateMany = async (filter, update) => { updated = { filter, update }; };
+  const updates = [];
+  Gig.updateOne = async (filter, update) => { updates.push({ filter, update }); };
   await syncCompletedGigs();
-  assert.deepEqual(updated.filter._id.$in, [IDS.gig]);
-  assert.deepEqual(updated.update, { $set: { status: "completed", isActive: false } });
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].filter._id.toString(), IDS.gig);
+  assert.deepEqual(updates[0].filter.status.$nin, ["completed", "deleted"]);
+  assert.deepEqual(updates[0].update, { $set: { status: "completed", isActive: false } });
 });
 
 test("a booking with an invalid gig ID or past date is rejected (400)", async () => {
@@ -457,15 +463,18 @@ test("gig input with wrong types (NoSQL injection objects) is rejected", async (
   assert.equal(res.status, 400);
 });
 
-test("gig search escapes regex input and keeps filter fields fixed", async () => {
+test("gig search treats request values as literal filters outside MongoDB", async () => {
   let filter;
   Gig.find = (baseFilter) => {
-    const query = originals.gigFind.call(Gig, baseFilter);
-    query.exec = async () => {
-      filter = query.getFilter();
-      return [];
+    filter = baseFilter;
+    return {
+      populate() { return this; },
+      sort: async () => [
+        { _id: IDS.gig, title: "(a+)+ logo", category: "Design", price: 150 },
+        { _id: "64b0000000000000000000a2", title: "aaaa", category: "Design", price: 150 },
+        { _id: "64b0000000000000000000a3", title: "(a+)+ writing", category: "Writing", price: 150 }
+      ]
     };
-    return query;
   };
 
   const res = await request({
@@ -473,13 +482,15 @@ test("gig search escapes regex input and keeps filter fields fixed", async () =>
   });
 
   assert.equal(res.status, 200);
-  assert.deepEqual({ status: filter.status, isActive: filter.isActive },
-    { status: "active", isActive: true });
-  assert.equal(filter.category, "Design");
-  assert.equal(filter.price.$gte, 100);
-  assert.equal(filter.price.$lte, 200);
-  assert.equal(filter.title.$regex.test("(a+)+"), true);
-  assert.equal(filter.title.$regex.test("aaaa"), false);
+  assert.deepEqual(filter, { status: "active", isActive: true });
+  assert.deepEqual(res.body.gigs.map((gig) => gig.title), ["(a+)+ logo"]);
+
+  const injected = await request({
+    path: "/api/gigs?search%5B%24ne%5D=x&category%5B%24ne%5D=x&minPrice%5B%24gt%5D=0"
+  });
+  assert.equal(injected.status, 200);
+  assert.deepEqual(filter, { status: "active", isActive: true });
+  assert.equal(injected.body.gigs.length, 3);
 });
 
 test("invalid record IDs are rejected before reaching the database", async () => {

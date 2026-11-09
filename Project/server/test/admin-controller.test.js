@@ -91,7 +91,7 @@ test('admin user lookup and update protect missing accounts and own Admin role',
 });
 
 test('admin booking updates synchronize transaction state', async () => {
-  const booking = { _id: 'b1', gigId: 'g1', status: 'pending', async save() { return this; } };
+  const booking = { _id: 'b1', gigId: '64b0000000000000000000a1', status: 'pending', async save() { return this; } };
   Booking.findById = async () => booking;
   const updates = [];
   Transaction.updateOne = async (_filter, value) => { updates.push(value.status); };

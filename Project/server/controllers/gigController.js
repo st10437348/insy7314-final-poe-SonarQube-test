@@ -1,38 +1,32 @@
 const Gig = require("../models/Gig");
 const Booking = require("../models/Booking");
 const { unavailableGigIds, hasActiveBooking } = require("../services/gigAvailability");
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // @desc    Get all active gigs (with search, category, and price filters)
 // @route   GET /api/gigs
 exports.getGigs = async (req, res, next) => {
   try {
-    const { search, category, minPrice, maxPrice } = req.query;
-
-    // Start with fixed field names. Only scalar, validated values are added to
-    // the query builder; request objects never become MongoDB filters.
-    const bookedIds = await unavailableGigIds();
-    let query = Gig.find({ status: "active", isActive: true, _id: { $nin: bookedIds } });
-
-    if (typeof search === "string" && search.trim()) {
-      const safePattern = new RegExp(escapeRegex(search.trim().slice(0, 80)), "i");
-      query = query.where("title").regex(safePattern);
-    }
-
-    if (typeof category === "string" && category !== "All") {
-      query = query.where("category").equals(category);
-    }
-
-    if (minPrice || maxPrice) {
-      if (minPrice && Number.isFinite(Number(minPrice))) query = query.where("price").gte(Number(minPrice));
-      if (maxPrice && Number.isFinite(Number(maxPrice))) query = query.where("price").lte(Number(maxPrice));
-    }
-
-    const gigs = await query
+    // Only fixed values reach MongoDB. HTTP filters are applied to the results.
+    const gigs = await Gig.find({ status: "active", isActive: true })
       .populate("freelancerId", "name profilePicture rating")
       .sort({ createdAt: -1 });
+    const bookedIds = new Set((await unavailableGigIds()).map(String));
+    const { search, category, minPrice, maxPrice } = req.query;
+    const searchText = typeof search === "string" ? search.trim().slice(0, 80).toLowerCase() : "";
+    const selectedCategory = typeof category === "string" && category !== "All" ? category : null;
+    const minimum = typeof minPrice === "string" && minPrice.trim() && Number.isFinite(Number(minPrice))
+      ? Number(minPrice) : null;
+    const maximum = typeof maxPrice === "string" && maxPrice.trim() && Number.isFinite(Number(maxPrice))
+      ? Number(maxPrice) : null;
+    const availableGigs = gigs.filter((gig) =>
+      !bookedIds.has(String(gig._id)) &&
+      (!searchText || gig.title?.toLowerCase().includes(searchText)) &&
+      (!selectedCategory || gig.category === selectedCategory) &&
+      (minimum === null || gig.price >= minimum) &&
+      (maximum === null || gig.price <= maximum)
+    );
 
-    res.status(200).json({ success: true, count: gigs.length, gigs });
+    res.status(200).json({ success: true, count: availableGigs.length, gigs: availableGigs });
   } catch (error) {
     next(error);
   }
