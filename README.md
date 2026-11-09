@@ -932,6 +932,12 @@ The backend image now copies runtime JavaScript files from specified source dire
 
 [Screenshot: GitHub Actions run showing the Docker Compose smoke test passing while the SonarQube Cloud quality gate failed.]
 
+#### Admin bootstrap email validation finding
+
+A later SonarQube Cloud scan flagged the email-format expression in `Project/server/scripts/bootstrapAdmin.js` for possible super-linear backtracking. The admin command now checks the length, local part and domain labels with bounded string operations instead of that regular expression. It still accepts ordinary admin addresses such as `admin2@hustlehub.test`; password rules and account-lockout clearing are unchanged. A subsequent Cloud scan is needed to confirm the issue closes.
+
+[Screenshot: SonarQube Cloud issue detail showing the super-linear regular expression finding in `bootstrapAdmin.js` before the fix.]
+
 SonarQube Cloud findings guided the code changes above. The scanner and gate continue to report remaining risks and coverage gaps for this test repository; the Classroom50 repository cannot currently connect to the service.
 
 ## 17. Logging and monitoring

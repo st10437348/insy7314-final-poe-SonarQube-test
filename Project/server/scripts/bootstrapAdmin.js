@@ -6,6 +6,36 @@ const { clearFailedLogins } = require("../services/accountLockout");
 
 const email = process.argv[2]?.trim().toLowerCase();
 
+function isValidAdminEmail(value) {
+  if (!value || value.length > 254) return false;
+
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+
+  const [local, domain] = parts;
+  const localCharacters = "abcdefghijklmnopqrstuvwxyz0123456789._+-";
+  if (
+    !local ||
+    local.length > 64 ||
+    local.startsWith(".") ||
+    local.endsWith(".") ||
+    local.includes("..") ||
+    ![...local].every((character) => localCharacters.includes(character))
+  ) {
+    return false;
+  }
+
+  const domainCharacters = "abcdefghijklmnopqrstuvwxyz0123456789-";
+  const labels = domain.split(".");
+  return labels.length >= 2 && labels.every((label) =>
+    label.length > 0 &&
+    label.length <= 63 &&
+    !label.startsWith("-") &&
+    !label.endsWith("-") &&
+    [...label].every((character) => domainCharacters.includes(character))
+  );
+}
+
 async function readPassword() {
   if (process.stdin.isTTY) {
     throw new Error("Pipe the new password to standard input.");
@@ -22,7 +52,7 @@ async function readPassword() {
 }
 
 async function bootstrapAdmin() {
-  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isValidAdminEmail(email)) {
     throw new Error("Provide a valid admin email as the first argument.");
   }
 
