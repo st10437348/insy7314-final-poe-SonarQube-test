@@ -926,7 +926,7 @@ A later Cloud issue list showed **one open Low security issue**: possible log in
 
 After Docker support was added, SonarQube Cloud reported two open issues in `Project/server/Dockerfile`: a High security finding for recursively copying the whole build context and a Medium security finding for allowing npm lifecycle scripts during installation. The GitHub Actions Docker Compose smoke test passed on that run, but the SonarQube Cloud quality gate failed.
 
-The backend image now copies runtime JavaScript files from specified source directories plus the certificate generator and configuration, so local `.env` files, tests, seed data and other build-context contents cannot be swept into the image by a broad `COPY . .`. Its production dependency install uses `npm ci --ignore-scripts`; the backend lockfile does not mark any dependency as requiring an install script. A local rebuild confirmed that MongoDB, the API and the client became healthy, and the direct API, proxied API and login page all returned HTTP 200. A new SonarQube Cloud scan is still needed to confirm the two findings close and the quality gate passes.
+The backend image now copies runtime JavaScript files from specified source directories plus the certificate generator, admin bootstrap command and certificate configuration, so local `.env` files, tests, seed data and other build-context contents cannot be swept into the image by a broad `COPY . .`. Its production dependency install uses `npm ci --ignore-scripts`; the backend lockfile does not mark any dependency as requiring an install script. A local rebuild confirmed that MongoDB, the API and the client became healthy, and the direct API, proxied API and login page all returned HTTP 200. A new SonarQube Cloud scan is still needed to confirm the two findings close and the quality gate passes.
 
 [Screenshot: SonarQube Cloud test-project issue list showing both Dockerfile findings before the fix.]
 
@@ -1147,6 +1147,23 @@ curl.exe -k https://localhost:5173/api/test
 ```
 
 `docker compose logs api client` shows container output. `docker compose down` stops the stack while keeping the MongoDB volume; `docker compose down -v` also deletes the stored database.
+
+### Create or reset the Docker admin account
+
+The Docker MongoDB volume is separate from the local development database. A new volume therefore does not contain the admin created by the development seed script. That seed script deletes other development records and is blocked in production mode; do not use it to set up Docker. Instead, run the following in the **same PowerShell window** after `docker compose up --build --wait`:
+
+```powershell
+$securePassword = Read-Host "Choose a new admin password" -AsSecureString
+$plainPassword = [System.Net.NetworkCredential]::new("", $securePassword).Password
+try {
+    $plainPassword | docker compose exec -T api node scripts/bootstrapAdmin.js admin@hustlehub.test
+} finally {
+    Remove-Variable plainPassword -ErrorAction SilentlyContinue
+    Remove-Variable securePassword -ErrorAction SilentlyContinue
+}
+```
+
+Choose 8–128 characters with uppercase, lowercase, a number and one of `@$!%*?&`. Sign in at `https://localhost:5173/login` with `admin@hustlehub.test` and the password you chose. The command creates the admin if missing or resets only that admin's password, clears its login lockout and revokes its old sessions; it does not erase bookings, transactions or other users. The password is passed through standard input and is not stored in the repository or placed on the command line.
 
 ### GitHub Actions container check
 
