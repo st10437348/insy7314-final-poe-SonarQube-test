@@ -2,7 +2,13 @@
 
 **INSY7314 POE, Part 3: Secure Stack** · Group 1
 
-HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. **Freelancers** list services ("gigs"), **clients** browse and book them, and **admins** oversee the platform. Part 2 extended the Part 1 HTTPS and authentication backend into a secured application. Part 3 adds an income and tax dashboard, CI checks, and SonarQube Cloud analysis in this test repository. The application includes:
+| Part 3 link | Location |
+| --- | --- |
+| Classroom50 repository | [HustleHub+ classroom repository](https://github.com/EMGPRS/insy7314-2026-insy7314-poe-classroom-st10437348) |
+| SonarQube Cloud test repository | [HustleHub+ SonarQube test repository](https://github.com/st10437348/insy7314-final-poe-SonarQube-test) |
+| Part 3 demonstration video | [Watch the Part 3 demonstration](https://youtu.be/3yA9BrSqaEk?si=3XDKGvWRwcZ-HgKo) |
+
+HustleHub+ is a full-stack MERN (MongoDB, Express, React, Node.js) marketplace. **Freelancers** list services ("gigs"), **clients** browse and book them, and **admins** oversee the platform. Part 2 extended the Part 1 HTTPS and authentication backend into a secured application. Part 3 adds an income and tax dashboard, CI checks, and SonarQube Cloud analysis in a companion repository. The application includes:
 
 - a marketplace API (gigs, bookings, transactions and income)
 - role-based access control (RBAC)
@@ -29,7 +35,7 @@ Part 3 work was split by marking criterion.
 | Security Review in README (10) | `Ruan Helgaard Hartman` | Threats and implemented protections | [Security review](#security-review-report) |
 | README Updates (5) | `Ruan Helgaard Hartman` | Project documentation and evidence | [README contents](#table-of-contents) |
 | CI/CD Pipeline Backend && Frontend (20) | `Alexandro Ornelas` | GitHub Actions backend, frontend, Newman and build checks | [16](#16-part-3-income-ci-and-static-analysis) |
-| Static Code Analysis (10) | `Alexandro Ornelas` | ESLint, backend syntax checks and SonarQube Cloud analysis with a required quality gate | [16](#16-part-3-income-ci-and-static-analysis) |
+| Static Code Analysis (10) | `Alexandro Ornelas` | ESLint and backend syntax check here; SonarQube Cloud evidence in the companion repository | [16](#16-part-3-income-ci-and-static-analysis) |
 | Logging (10) | `Caleb Forbes` | Structured request, business and security events with Better Stack transport and redaction | [17](#17-logging-and-monitoring) |
 | 2 Security Features (15) | `Caleb Forbes` | Per-account login lockout and server-side session revocation | [18](#18-additional-security-features) |
 | Tax + Income Dashboard (20) | `Clifford Naude` | SARS 2027 progressive estimate and responsive earnings dashboard | [16](#16-part-3-income-ci-and-static-analysis) |
@@ -85,13 +91,13 @@ New simulated transactions deduct the 10% platform fee and record zero tax withh
 
 ### Repository used for SonarQube Cloud
 
-This is the independent [SonarQube test repository](https://github.com/st10437348/insy7314-final-poe-SonarQube-test). It was created from the [Classroom50 repository](https://github.com/EMGPRS/insy7314-2026-insy7314-poe-classroom-st10437348) because the Classroom50 repository could not be forked and its organization blocked connecting it to SonarQube Cloud. This copy has its own commit history. SonarQube Cloud results below belong to **this test repository**, not the Classroom50 repository. Application fixes and the team's later logging and security work have been copied here so the Cloud scan can assess the combined code.
+This is the Classroom50 repository. The Classroom50 organization blocked SonarQube Cloud access to it, and it could not be forked. A separate [HustleHub Part 3 SonarQube test repository](https://github.com/st10437348/insy7314-final-poe-SonarQube-test) was therefore created as a copy of the application so the GitHub Actions scan could run. The copy has its own commit history; it is not a fork or a SonarQube scan of this Classroom50 repository. Application fixes from the test repository were brought back here. All SonarQube Cloud results described below came from the **test repository's** Cloud project, not this repository.
 
-The Classroom50 workflow retains a conditional SonarQube job that is skipped by default while the organization restriction remains. The workflow in this test repository runs SonarQube as a required job and waits for the Cloud quality gate.
+The Classroom50 workflow retains a conditional SonarQube job, but the organization restriction means it is skipped by default. Its required backend, frontend, API integration, container smoke test and final status checks still run. The test repository's workflow runs the SonarQube job as a required check and waits for the Cloud quality gate.
 
 ### GitHub Actions pipelines and workflows
 
-#### `CI and static analysis` in this SonarQube test repository
+#### `CI and static analysis` in this Classroom50 repository
 
 The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request and can also be started manually. GitHub-hosted Ubuntu runners use Node.js 22 and lockfile-based `npm ci` installs. Its jobs run independently unless a dependency is stated:
 
@@ -101,10 +107,19 @@ The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request
 | `frontend` | Installs `Project/client` dependencies, checks high or critical runtime advisories, runs ESLint and Vitest, then builds the production React bundle with Vite. | An audit, lint rule, test or build fails. |
 | `api-integration` | Starts a health-checked MongoDB 7 service, generates a temporary JWT secret, installs the root and backend packages, audits root runtime dependencies, creates the test HTTPS certificate, seeds only the `hustlehub_ci` database, starts the HTTPS API, waits for its health endpoint, and runs the Postman collection through Newman. | Installation, audit, database seed, API startup, health check or a Newman assertion fails. |
 | `containers` | Builds the backend and production frontend Docker images, starts both with MongoDB through Compose, waits for all three health checks, then checks the direct API, the frontend route and the proxied API. Uploads container status and logs. | A build, startup, health check or HTTP smoke test fails. |
-| `sonarqube` | After `backend` and `frontend` succeed, installs both packages, generates backend and frontend LCOV reports, checks the Cloud credentials, runs `SonarSource/sonarqube-scan-action@v8.3.0`, and waits for the quality gate. | Required configuration is missing, analysis fails, or the Cloud quality gate fails. This job is **required** in this repository. |
-| `ci-result` | Runs even when an earlier job fails. It requires `backend`, `frontend`, `api-integration`, `containers` and `sonarqube` all to succeed. | Any of the five required jobs fails or is skipped. |
+| `sonarqube` | When enabled, waits for `backend` and `frontend`, generates backend and frontend LCOV reports, checks for the Cloud credentials, runs `SonarSource/sonarqube-scan-action@v8.3.0`, and waits for the quality gate. | Required configuration is missing, analysis fails, or the Cloud quality gate fails. It is **skipped by default here** because the organization blocks the connection. |
+| `ci-result` | Runs even when an earlier job fails. It requires `backend`, `frontend`, `api-integration` and `containers` to succeed. It requires `sonarqube` to have been skipped when disabled, or to succeed when enabled. | Any required result differs from the expected status. |
 
 `api-integration` uploads the Newman HTML report as a `newman-report` artifact even when the test job fails; on failure it also uploads the API log. The MongoDB service and generated secret exist only for that CI run. The workflow does not deploy the application.
+
+![Classroom50 CI run showing passing backend, frontend, API integration, Docker Compose smoke test and final check, with SonarQube Cloud skipped](Screenshots/part3-ci-classroom-successful-run.png)
+
+
+#### `CI and static analysis` in the SonarQube test repository
+
+The [test repository](https://github.com/st10437348/insy7314-final-poe-SonarQube-test) has the same backend, frontend, Newman integration and container checks. Its `sonarqube` job is **required** rather than conditional. It starts only after backend and frontend checks succeed, installs both packages, creates their LCOV coverage reports, and scans the source with the official SonarQube action. The action waits for the SonarQube Cloud quality gate, so a completed scan with a failed gate fails the job. Its final `ci-result` requires all five jobs to succeed; a skipped or failed SonarQube job cannot produce a green result. The test repository did not retain CodeQL as a second scanner because GitHub code scanning was unavailable there; SonarQube Cloud supplied the static analysis and quality gate.
+
+The [Sonar project configuration](sonar-project.properties) scans `Project/server` and `Project/client/src`, identifies test directories separately, and imports backend and frontend LCOV reports. Generated files, dependencies and tests are excluded from source analysis. One-off backend CLI scripts are excluded from **coverage**; application controllers, models, pages and the frontend entry point remain in scope. This distinction matters because an untested source file appears as uncovered in SonarQube Cloud even if a test runner's own report lists only imported files.
 
 ![SonarQube test repository showing all seven successful checks](Screenshots/part3-ci-all-checks-passed.png)
 
@@ -112,23 +127,13 @@ The [CI workflow](.github/workflows/ci.yml) runs for every push and pull request
 
 ![CI artifacts containing Docker Compose evidence and the Newman report](Screenshots/part3-ci-artifacts.png)
 
-![GitHub Actions SonarQube Cloud quality-gate job and required checks passing in the test repository](Screenshots/part3-ci-sonar-quality-gate-passed.png)
-
-#### Classroom50 CI and Autograde workflows
-
-The Classroom50 repository has the same four required application checks: `backend`, `frontend`, `api-integration` and `containers`. Its `sonarqube` job is conditional because the organization blocks the Cloud connection; its `ci-result` requires a skip when SonarQube is disabled and a pass when it is enabled. Its separate `Autograde` workflow runs on `main` pushes and `submit/*` tags and delegates to Classroom50's reusable grading workflow. This copied repository also contains that Autograde workflow file, but it is separate from the application CI and SonarQube quality gate.
-
-The [Sonar project configuration](sonar-project.properties) scans `Project/server` and `Project/client/src`, identifies test directories separately, and imports backend and frontend LCOV reports. Generated files, dependencies and tests are excluded from source analysis. One-off backend CLI scripts are excluded from **coverage**; application controllers, models, pages and the frontend entry point remain in scope. This distinction matters because an untested source file appears as uncovered in SonarQube Cloud even if a test runner's own report lists only imported files. CodeQL was removed as an additional scanner because GitHub code scanning was unavailable here; SonarQube Cloud supplies the static analysis and quality gate.
-
-[Screenshot: Classroom50 GitHub Actions CI run showing the three required application jobs, the skipped conditional SonarQube job, and the final result.]
-
 ### SonarQube Cloud analysis and fixes
 
-The latest successful Cloud analysis appears first. The historical results that follow show what prompted the fixes. A passing quality gate does not mean every dependency risk has been resolved.
+The Cloud results below come from the separate SonarQube test repository, not from a scan of this Classroom50 repository. The latest successful analysis appears first; historical findings and fixes follow. A passing quality gate does not mean every dependency risk has been resolved.
 
 #### Latest SonarQube Cloud results
 
-The SonarQube Cloud summary screenshot below shows this repository's analysis for commit `5c255da6`. The quality gate passed, overall coverage was **83.5%**, duplication was **1.3%**, and the summary showed zero open security, reliability or maintainability issues. The issue-list screenshot below, filtered to Open and Confirmed, shows **zero issues**. The summary still lists **20 dependency risks**.
+The SonarQube Cloud summary screenshot below shows the test repository's analysis for commit `5c255da6`. The quality gate passed, overall coverage was **83.5%**, duplication was **1.3%**, and the summary showed zero open security, reliability or maintainability issues. The issue-list screenshot below, filtered to Open and Confirmed, shows **zero issues**. The summary still lists **20 dependency risks**.
 
 ![Latest SonarQube Cloud summary showing a passing quality gate, 83.5% coverage and 20 dependency risks](Screenshots/part3-sonar-latest-summary.png)
 
@@ -161,8 +166,6 @@ The Cloud coverage views subsequently showed **57.1%**, then **59% overall cover
 
 ![Historical SonarQube Cloud server coverage at 59.0%](Screenshots/part3-sonar-server-coverage-59-percent.png)
 
-[Screenshot: SonarQube Cloud overall coverage view showing the later 59% figure and the lowest-covered application files.]
-
 #### Dependency risks and the remaining security finding
 
 SonarQube Cloud displayed **89 dependency-risk entries** before the dependency review. The application did not import the direct `node.js@0.0.1-security` npm package, so it was removed; Node.js comes from the runtime, not that package. Dependency locks were updated to patched `handlebars`, `node-forge`, `qs` and `lodash` versions where applicable. Runtime dependency audits were added to CI. The earlier 89 is a historical baseline. The latest Cloud summary above shows **20 dependency risks remaining**, so the passing quality gate does not mean all dependency risks were cleared.
@@ -171,16 +174,13 @@ The SonarQube Cloud dependency-risk list records the remaining **20 entries** (s
 
 | Dependency scope | SonarQube Cloud findings | Why they remain and what is still needed |
 | --- | --- | --- |
-| Development dependencies: **19 entries** | Transitive versions of `flatted`, `underscore`, `csv-parse`, `jose`, `picomatch`, `@faker-js/faker`, `uuid`, `uri-js`, `file-type` and `braces`. Most come through Newman or its HTML reporter; `picomatch@4.0.7` also comes through frontend Vite/Vitest tooling. The `braces` entry is marked **withdrawn** in that list, so it should not be described as an active vulnerability. | These packages are installed for API tests, reports, frontend builds or tests. They are not in the production backend image, which installs with `--omit=dev`, or the final frontend image, which serves built assets with Nginx. They still run in development and CI. Changing an application source file cannot patch a transitive package. The parent tools need compatible updates or carefully tested overrides; the team has not verified a change that clears these Cloud findings while preserving the required checks. |
-| Runtime dependency: **1 entry** | `sift@17.1.3` (CVE-2026-85625, prototype pollution), pulled in by server-side Mongoose. | This is included with the running backend and is **not** covered by the development-only explanation. It remains an open risk. A compatible Mongoose/sift dependency update needs to be selected, tested against the application's MongoDB queries, and rescanned in SonarQube Cloud. |
+| Development dependencies: **20 entries** | Transitive versions of `flatted`, `underscore`, `csv-parse`, `jose`, `picomatch`, `@faker-js/faker`, `uuid`, `uri-js`, `file-type` and `braces`. Most come through Newman or its HTML reporter; `picomatch@4.0.7` also comes through frontend Vite/Vitest tooling. The `braces` entry is marked **withdrawn** in that list, so it should not be described as an active vulnerability. | These packages are installed for API tests, reports, frontend builds or tests. They are not in the production backend image, which installs with `--omit=dev`, or the final frontend image, which serves built assets with Nginx. They still run in development and CI. Changing an application source file cannot patch a transitive package. The parent tools need compatible updates or carefully tested overrides; the team has not verified a change that clears these Cloud findings while preserving the required checks. |
 
 The 20 entries are **not proven unfixable**. They were left open because a safe, tested dependency change had not been established for that scan; the runtime `sift` finding deserves priority. The passing quality gate and zero open *code issues* shown above do not clear these separate dependency-risk entries.
 
 [Screenshot: SonarQube Cloud dependency-risk list showing the 20 remaining entries, including the runtime `sift` finding.]
 
 A later Cloud issue list showed **one open Low security issue**: possible log injection in `Project/server/middleware/errorMiddleware.js`. The fallback logger previously included the request URL and error name, which could contain attacker-controlled newlines. It now logs a generated incident ID and returns that ID in the `X-Incident-Id` response header while keeping the same safe 500 response body. A regression test checks that forged newline text is absent from the log. The screenshot of the open issue predates this fix; the latest Cloud issue-list screenshot above shows zero open or confirmed issues, without listing individual issue histories.
-
-[Screenshot: SonarQube Cloud dependency-risk view showing the original 89 entries and the listed packages.]
 
 ![Historical SonarQube Cloud log-injection finding before the fix](Screenshots/part3-sonar-log-injection.png)
 
@@ -206,7 +206,7 @@ A later Cloud scan showed two Blocker NoSQL injection findings in the marketplac
 
 ![Historical SonarQube Cloud list of the two later Blocker NoSQL injection findings before the fixes](Screenshots/part3-sonar-later-nosql-issues.png)
 
-SonarQube Cloud findings guided the code changes above. The scanner and gate continue to report remaining risks and coverage gaps for this test repository; the Classroom50 repository cannot currently connect to the service.
+SonarQube Cloud findings guided the code changes above; the scanner and gate continue to report remaining risks and coverage gaps. The separate test repository provides the Cloud analysis because the Classroom50 repository itself cannot currently connect to that service.
 
 ## 17. Logging and monitoring
 
@@ -447,6 +447,7 @@ The required `containers` job in [CI and static analysis](.github/workflows/ci.y
 [Screenshot: GitHub Actions `containers` job showing the two application containers and MongoDB healthy, with the HTTP smoke checks passing.]
 
 [Screenshot: `docker compose ps` showing the `api`, `client` and `mongo` services running and healthy.]
+
 
 ## Security Review Report
 ### Introduction
