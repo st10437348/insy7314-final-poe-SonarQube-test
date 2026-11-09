@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getGigs,
   getGigById,
+  getGigHistory,
   getMyGigById,
   createGig,
   updateGig,
@@ -16,6 +17,7 @@ const { validateGig, validateId } = require("../middleware/validateMarketplace")
 router.get("/", getGigs);
 router.get("/my-gigs", protect, authorizeRoles("Freelancer"), getMyGigs);
 router.get("/my-gigs/:id", protect, authorizeRoles("Freelancer"), validateId, getMyGigById);
+router.get("/history/:id", protect, validateId, getGigHistory);
 router.get("/:id", validateId, getGigById);
 
 // Add protect middleware to POST, PUT, and DELETE routes:

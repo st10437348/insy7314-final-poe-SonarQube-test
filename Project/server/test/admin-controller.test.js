@@ -9,6 +9,7 @@ const admin = require('../controllers/adminController');
 
 const methods = [
   [Gig, 'countDocuments'], [Gig, 'find'], [Gig, 'findByIdAndUpdate'],
+  [Gig, 'findOneAndUpdate'], [Gig, 'exists'], [Gig, 'updateOne'],
   [User, 'countDocuments'], [User, 'find'], [User, 'findById'],
   [Booking, 'countDocuments'], [Booking, 'find'], [Booking, 'findById'],
   [ApiUsage, 'countDocuments'], [ApiUsage, 'find'],
@@ -90,18 +91,24 @@ test('admin user lookup and update protect missing accounts and own Admin role',
 });
 
 test('admin booking updates synchronize transaction state', async () => {
-  const booking = { _id: 'b1', status: 'pending', async save() { return this; } };
+  const booking = { _id: 'b1', gigId: 'g1', status: 'pending', async save() { return this; } };
   Booking.findById = async () => booking;
   const updates = [];
   Transaction.updateOne = async (_filter, value) => { updates.push(value.status); };
+  let completedGig;
+  Gig.updateOne = async (_filter, update) => { completedGig = update; };
 
   assert.equal((await call(admin.updateAdminBooking, { params: { id: 'b1' }, body: { status: 'invalid' } })).status, 400);
   for (const [status, transactionStatus] of [['completed', 'completed'], ['cancelled', 'refunded'], ['accepted', 'pending']]) {
+    booking.status = 'pending';
     const result = await call(admin.updateAdminBooking, { params: { id: 'b1' }, body: { status } });
     assert.equal(result.status, 200);
     assert.equal(booking.status, status);
     assert.equal(updates.at(-1), transactionStatus);
   }
+  assert.deepEqual(completedGig, { $set: { status: 'completed', isActive: false } });
+  booking.status = 'completed';
+  assert.equal((await call(admin.updateAdminBooking, { params: { id: 'b1' }, body: { status: 'pending' } })).status, 409);
   Booking.findById = async () => null;
   assert.equal((await call(admin.updateAdminBooking, { params: { id: 'missing' }, body: { status: 'completed' } })).status, 404);
 });
@@ -111,7 +118,7 @@ test('admin gig moderation updates visibility and soft deletes gigs', async () =
   assert.equal((await call(admin.getAllAdminGigs)).body.gigs[0].title, 'Logo design');
 
   const changes = [];
-  Gig.findByIdAndUpdate = async (_id, update) => {
+  Gig.findOneAndUpdate = async (_filter, update) => {
     changes.push(update);
     return { _id: 'g1', ...update };
   };
@@ -121,9 +128,13 @@ test('admin gig moderation updates visibility and soft deletes gigs', async () =
   assert.equal((await call(admin.deleteAdminGig, { params: { id: 'g1' } })).status, 200);
   assert.deepEqual(changes.at(-1), { status: 'deleted', isActive: false });
 
-  Gig.findByIdAndUpdate = async () => null;
+  Gig.findOneAndUpdate = async () => null;
+  Gig.exists = async () => null;
   assert.equal((await call(admin.updateAdminGigStatus, { params: { id: 'missing' }, body: { status: 'active' } })).status, 404);
   assert.equal((await call(admin.deleteAdminGig, { params: { id: 'missing' } })).status, 404);
+  Gig.exists = async () => ({ _id: 'g1' });
+  assert.equal((await call(admin.updateAdminGigStatus, { params: { id: 'g1' }, body: { status: 'active' } })).status, 409);
+  assert.equal((await call(admin.deleteAdminGig, { params: { id: 'g1' } })).status, 409);
 });
 
 test('session endpoint returns basic identity and logout clears the secure cookie', async () => {

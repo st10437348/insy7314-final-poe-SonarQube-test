@@ -245,6 +245,7 @@ function AdminGigs() {
                                                     gig.status ||
                                                     "active"
                                                 }
+                                                disabled={gig.status === "completed"}
                                                 onChange={(event) =>
                                                     handleStatusChange(
                                                         gig,
@@ -265,6 +266,9 @@ function AdminGigs() {
                                                 <option value="deleted">
                                                     Deleted
                                                 </option>
+                                                <option value="completed">
+                                                    Completed
+                                                </option>
                                             </select>
                                         </td>
 
@@ -282,17 +286,15 @@ function AdminGigs() {
                                                     View
                                                 </Link>
 
-                                                <button
-                                                    type="button"
-                                                    className="button button-danger"
-                                                    onClick={() =>
-                                                        handleDelete(
-                                                            gig
-                                                        )
-                                                    }
-                                                >
-                                                    Delete
-                                                </button>
+                                                {gig.status !== "completed" && (
+                                                    <button
+                                                        type="button"
+                                                        className="button button-danger"
+                                                        onClick={() => handleDelete(gig)}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

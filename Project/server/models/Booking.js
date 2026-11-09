@@ -73,4 +73,15 @@ bookingSchema.pre("save", function (next) {
     next();
 });
 
+// One live reservation per gig, including simultaneous booking requests.
+bookingSchema.index(
+    { gigId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            status: { $in: ["pending", "accepted", "in_progress"] }
+        }
+    }
+);
+
 module.exports = mongoose.model("Booking", bookingSchema);

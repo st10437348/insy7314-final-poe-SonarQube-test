@@ -4,6 +4,7 @@ const Booking = require("../models/Booking");
 const ApiUsage = require("../models/ApiUsage");
 const Transaction = require("../models/Transaction");
 const { logEvent } = require("../utils/logger");
+const { completeGig } = require("../services/gigAvailability");
 
 const validEmail = (value) => {
   if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
@@ -339,11 +340,16 @@ exports.updateAdminBooking = async (req, res, next) => {
             });
         }
 
+        if (booking.status === "completed" && status !== "completed") {
+            return res.status(409).json({ message: "A completed booking cannot be reopened." });
+        }
+
         booking.status = status;
         booking.completedAt = status === "completed" ? new Date() : null;
 
         const updatedBooking =
             await booking.save();
+        if (status === "completed") await completeGig(booking.gigId);
         await Transaction.updateOne({ bookingId: booking._id },
             { status: status === "cancelled" ? "refunded" : status === "completed" ? "completed" : "pending" });
 
@@ -373,13 +379,19 @@ exports.getAllAdminGigs = async (req, res, next) => {
 exports.updateAdminGigStatus = async (req, res, next) => {
   try {
     const { status } = req.body || {};
-    const gig = await Gig.findByIdAndUpdate(
-      req.params.id,
+    if (!["active", "paused", "deleted"].includes(status)) {
+      return res.status(400).json({ message: "Invalid gig status." });
+    }
+    const gig = await Gig.findOneAndUpdate(
+      { _id: req.params.id, status: { $ne: "completed" } },
       { status, isActive: status === "active" },
       { new: true, runValidators: true }
     );
 
     if (!gig) {
+      if (await Gig.exists({ _id: req.params.id, status: "completed" })) {
+        return res.status(409).json({ message: "Completed gigs cannot be changed." });
+      }
       return res.status(404).json({ message: "Gig not found" });
     }
 
@@ -393,10 +405,14 @@ exports.updateAdminGigStatus = async (req, res, next) => {
 // @route   DELETE /api/admin/gigs/:id
 exports.deleteAdminGig = async (req, res, next) => {
   try {
-    const gig = await Gig.findByIdAndUpdate(req.params.id,
+    const gig = await Gig.findOneAndUpdate(
+      { _id: req.params.id, status: { $ne: "completed" } },
       { status: "deleted", isActive: false }, { new: true });
 
     if (!gig) {
+      if (await Gig.exists({ _id: req.params.id, status: "completed" })) {
+        return res.status(409).json({ message: "Completed gigs cannot be deleted." });
+      }
       return res.status(404).json({ message: "Gig not found" });
     }
 

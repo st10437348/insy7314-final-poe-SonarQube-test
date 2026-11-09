@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- Initial API loads update state asynchronously; API_URL is fixed at build time. */
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 function EditGig() {
     const { id } = useParams();
@@ -22,6 +22,7 @@ function EditGig() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [completed, setCompleted] = useState(false);
 
 
 
@@ -45,6 +46,11 @@ function EditGig() {
             }
 
             const gig = data.gig || data;
+
+            if (gig.status === "completed") {
+                setCompleted(true);
+                return;
+            }
 
             setForm({
                 title: gig.title || "",
@@ -131,6 +137,18 @@ function EditGig() {
                     <h1>Edit Gig</h1>
                     <p>Loading gig...</p>
                 </div>
+            </main>
+        );
+    }
+
+    if (completed) {
+        return (
+            <main className="page-container">
+                <div className="page-heading">
+                    <h1>Completed Gig</h1>
+                    <p>This gig is completed and cannot be edited.</p>
+                </div>
+                <Link to={`/gigs/${id}`} className="button button-secondary">View Gig</Link>
             </main>
         );
     }

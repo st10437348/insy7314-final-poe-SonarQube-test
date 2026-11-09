@@ -17,6 +17,7 @@ const {
 
 const {protect, authorizeRoles} = require("../middleware/authMiddleware");
 const { validateId } = require("../middleware/validateMarketplace");
+const { deleteUser } = require("../controllers/userController");
 
 router.use(protect);
 router.use(authorizeRoles("Admin"));
@@ -33,6 +34,7 @@ router.get("/", getAdminDashboard);
 router.get("/users", getAdminUsers);
 router.get("/users/:id", validateId, getAdminUser);
 router.put("/users/:id", validateId, updateAdminUser);
+router.delete("/users/:id", validateId, deleteUser);
 
 //Analytics
 router.get("/analytics", getAdminAnalytics);

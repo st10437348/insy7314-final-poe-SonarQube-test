@@ -275,13 +275,13 @@ erDiagram
 | Collection | Key fields | Notes |
 | --- | --- | --- |
 | `users` | name, email (unique, lowercase), password (bcrypt hash), role (`Client` / `Freelancer` / `Admin`), isActive, bio, skills, phone, location | Deactivated users cannot log in or use existing tokens |
-| `gigs` | freelancerId → User, title, description, category, price, deliveryDays, location.address, status (`active` / `paused` / `deleted`), views | Delete is a soft delete, so booking history stays intact |
+| `gigs` | freelancerId → User, title, description, category, price, deliveryDays, location.address, status (`active` / `paused` / `completed` / `deleted`), views | Completed gigs remain in My Gigs as read-only history; deletion is a soft delete |
 | `bookings` | gigId, clientId, freelancerId, agreedPrice, bookingDate, status, completedAt | `agreedPrice` is copied from the gig at booking time |
 | `transactions` | bookingId (unique), clientId, freelancerId, amount, platformFee, taxAmount, freelancerAmount, status, invoiceNumber, payoutDate | Exactly one per booking |
 | `apiusages` | date, endpoint, method, statusCode, successful | Written by middleware on every request |
 | `reviews`, `analytics` | Not used in Part 2 | Supporting collections |
 
-Indexes are created by the `migrate-mongo` migrations in `Project/migrations/`.
+Indexes are created by the `migrate-mongo` migrations in `Project/migrations/`. The Booking model also defines a unique partial index so only one pending, accepted or in-progress booking can reserve a gig at a time.
 
 ### 6.2 Booking and simulated payment
 
@@ -316,6 +316,9 @@ stateDiagram-v2
 ```
 
 - Completing a booking sets the transaction to `completed`; cancelling sets it to `refunded`.
+- A pending booking reserves the gig and removes it from the public marketplace. Cancellation releases it; completion marks the gig `completed` and removes it permanently from public listings.
+- Completed gigs remain visible in the freelancer's My Gigs as read-only records. The booking's client and freelancer can still open the gig details from their booking or gig history. Other users cannot access those details.
+- When the API starts, it also marks gigs with older completed bookings as completed, so existing records follow the same rule.
 - Any other jump (for example `pending → completed`) is rejected with `400`.
 - Admins can record a **payout** on a completed transaction (`PATCH /api/transactions/:id/payout`). It can only be done once.
 
@@ -363,8 +366,9 @@ All routes are relative to `https://localhost:5000`. 🔒 = valid JWT cookie req
 | --- | --- | --- | --- |
 | GET | `/api/gigs` | Public | Active gigs (`search`, `category`, `minPrice`, `maxPrice`) |
 | GET | `/api/gigs/:id` | Public | One active gig |
+| GET | `/api/gigs/history/:id` | 🔒 Gig owner, booking participant or Admin | Details for a non-public gig |
 | GET | `/api/gigs/my-gigs` | 🔒 Freelancer | Own gigs |
-| GET | `/api/gigs/my-gigs/:id` | 🔒 Freelancer (owner) | Own gig for editing (including paused) |
+| GET | `/api/gigs/my-gigs/:id` | 🔒 Freelancer (owner) | Own gig details, including completed gigs |
 | POST | `/api/gigs` | 🔒 Freelancer | Create gig |
 | PUT | `/api/gigs/:id` | 🔒 Freelancer (owner) | Update own gig |
 | DELETE | `/api/gigs/:id` | 🔒 Freelancer (owner) | Soft-delete own gig |
@@ -388,7 +392,7 @@ All routes are relative to `https://localhost:5000`. 🔒 = valid JWT cookie req
 | --- | --- | --- |
 | GET | `/api/admin` | Dashboard statistics |
 | GET | `/api/admin/users` | List users |
-| GET / PUT | `/api/admin/users/:id` | View or update a user |
+| GET / PUT / DELETE | `/api/admin/users/:id` | View, update or deactivate a user |
 | GET | `/api/admin/gigs` | List gigs |
 | PUT / DELETE | `/api/admin/gigs/:id` | Moderate or remove a gig |
 | GET | `/api/admin/bookings` | List bookings |
@@ -573,14 +577,14 @@ The frontend is a React 19 single-page app built with Vite and React Router 7. I
 | --- | --- | --- |
 | Public | `/` | Home / landing page |
 | | `/marketplace` | Browse gigs with search and category filter |
-| | `/gigs/:id` | Gig details with a "Book" action |
+| | `/gigs/:id` | Public gig details with a "Book" action; completed details are available to booking participants after login |
 | | `/login`, `/signup` | Authentication |
 | Any logged-in user | `/profile` | View, edit or deactivate profile |
 | | `/bookings` | Bookings list with status actions |
 | Client and Freelancer | `/transactions` | Transaction history |
 | Client | `/bookings/new?gigId=` | Booking confirmation (simulated payment) |
 | Freelancer | `/dashboard` | Income summary, recent activity, quick actions |
-| | `/my-gigs`, `/create-gig`, `/gigs/:id/edit` | Gig management (create, edit, pause, delete) |
+| | `/my-gigs`, `/create-gig`, `/gigs/:id/edit` | Gig management; completed gigs remain viewable but cannot be edited or deleted |
 | | `/income` | Income breakdown and monthly income |
 | Admin | `/admin` | Dashboard |
 | | `/admin/users`, `/admin/users/:id/edit` | User management |

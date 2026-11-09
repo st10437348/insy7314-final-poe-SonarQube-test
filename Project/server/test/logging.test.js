@@ -36,7 +36,7 @@ class CaptureTransport extends winston.Transport {
 const capture = new CaptureTransport();
 
 const IDS = { client: "64b000000000000000000001", freelancer: "64b000000000000000000002", gig: "64b0000000000000000000a1" };
-const originals = { findById: User.findById, findOne: User.findOne, gigFindOne: Gig.findOne, bookingCreate: Booking.create, txCreate: Transaction.create };
+const originals = { findById: User.findById, findOne: User.findOne, gigFindOne: Gig.findOne, bookingCreate: Booking.create, bookingExists: Booking.exists, txCreate: Transaction.create };
 let server;
 let port;
 let originalSilent;
@@ -65,6 +65,7 @@ const find = (event) => entries.filter((entry) => entry.event === event);
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 test.before(async () => {
+  Booking.exists = async () => null;
   originalSilent = logger.silent;
   logger.silent = false;
   logger.transports.forEach((transport) => { transport.silent = true; });
@@ -81,6 +82,7 @@ test.after(async () => {
   User.findOne = originals.findOne;
   Gig.findOne = originals.gigFindOne;
   Booking.create = originals.bookingCreate;
+  Booking.exists = originals.bookingExists;
   Transaction.create = originals.txCreate;
   await new Promise((resolve) => server.close(resolve));
 });

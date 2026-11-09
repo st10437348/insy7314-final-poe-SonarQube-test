@@ -166,7 +166,7 @@ function MyGigs() {
                                                 : "status-badge status-success"
                                         }
                                     >
-                                        {gig.status || "active"}
+                                        {gig.status === "completed" ? "Completed" : gig.status || "active"}
                                     </span>
                                 </div>
 
@@ -222,27 +222,25 @@ function MyGigs() {
                                         View
                                     </Link>
 
-                                    <Link
-                                        to={`/gigs/${gigId}/edit`}
-                                        className="button button-primary"
-                                    >
-                                        Edit
-                                    </Link>
+                                    {gig.status !== "completed" && (
+                                        <>
+                                            <Link
+                                                to={`/gigs/${gigId}/edit`}
+                                                className="button button-primary"
+                                            >
+                                                Edit
+                                            </Link>
 
-                                    <button
-                                        type="button"
-                                        className="button button-danger"
-                                        disabled={
-                                            deletingId === gigId
-                                        }
-                                        onClick={() =>
-                                            handleDelete(gigId)
-                                        }
-                                    >
-                                        {deletingId === gigId
-                                            ? "Deleting..."
-                                            : "Delete"}
-                                    </button>
+                                            <button
+                                                type="button"
+                                                className="button button-danger"
+                                                disabled={deletingId === gigId}
+                                                onClick={() => handleDelete(gigId)}
+                                            >
+                                                {deletingId === gigId ? "Deleting..." : "Delete"}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </article>
                         );

@@ -32,9 +32,15 @@ const originals = {
   gigFind: Gig.find,
   gigFindOne: Gig.findOne,
   gigFindOneAndUpdate: Gig.findOneAndUpdate,
+  gigUpdateOne: Gig.updateOne,
+  gigUpdateMany: Gig.updateMany,
   bookingCreate: Booking.create,
+  bookingFindById: Booking.findById,
+  bookingDistinct: Booking.distinct,
+  bookingExists: Booking.exists,
   transactionCreate: Transaction.create,
-  transactionFindById: Transaction.findById
+  transactionFindById: Transaction.findById,
+  transactionUpdateOne: Transaction.updateOne
 };
 
 ApiUsage.create = async () => ({});
@@ -100,15 +106,26 @@ test.after(async () => {
   await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
 });
 
+test.beforeEach(() => {
+  Booking.distinct = async () => [];
+  Booking.exists = async () => null;
+});
+
 test.afterEach(() => {
   User.findById = originals.userFindById;
   Gig.create = originals.gigCreate;
   Gig.find = originals.gigFind;
   Gig.findOne = originals.gigFindOne;
   Gig.findOneAndUpdate = originals.gigFindOneAndUpdate;
+  Gig.updateOne = originals.gigUpdateOne;
+  Gig.updateMany = originals.gigUpdateMany;
   Booking.create = originals.bookingCreate;
+  Booking.findById = originals.bookingFindById;
+  Booking.distinct = originals.bookingDistinct;
+  Booking.exists = originals.bookingExists;
   Transaction.create = originals.transactionCreate;
   Transaction.findById = originals.transactionFindById;
+  Transaction.updateOne = originals.transactionUpdateOne;
 });
 
 // ---------- Security headers ----------
@@ -267,6 +284,142 @@ test("a booking uses the gig price from the database and creates a transaction",
   assert.equal(transaction.freelancerAmount, 900);
   assert.equal(transaction.freelancerId, IDS.freelancer);
   assert.equal(transaction.status, "pending");
+});
+
+test("a gig with a pending or accepted booking is hidden and cannot be booked directly", async () => {
+  let availabilityFilter;
+  let marketplaceFilter;
+  Booking.distinct = async (field, filter) => {
+    assert.equal(field, "gigId");
+    availabilityFilter = filter;
+    return [IDS.gig];
+  };
+  Gig.find = (filter) => {
+    marketplaceFilter = filter;
+    const query = originals.gigFind.call(Gig, filter);
+    query.exec = async () => [];
+    return query;
+  };
+
+  const list = await request({ path: "/api/gigs" });
+  assert.equal(list.status, 200);
+  assert.deepEqual(availabilityFilter, { status: { $in: ["pending", "accepted", "in_progress", "completed"] } });
+  assert.deepEqual(marketplaceFilter._id.$nin, [IDS.gig]);
+
+  Booking.exists = async () => ({ _id: IDS.booking });
+  Gig.findOneAndUpdate = () => { throw new Error("Unavailable gig must not be loaded"); };
+  const detail = await request({ path: `/api/gigs/${IDS.gig}` });
+  assert.equal(detail.status, 404);
+
+  Gig.findOne = async () => ({
+    _id: IDS.gig, freelancerId: IDS.freelancer, price: 1000,
+    location: { address: "Cape Town" }
+  });
+  for (const clientId of [IDS.client, IDS.otherFreelancer]) {
+    const booking = await request({
+      path: "/api/bookings", method: "POST",
+      body: { gigId: IDS.gig, bookingDate: futureDate() },
+      headers: loginAs("Client", clientId)
+    });
+    assert.equal(booking.status, 409);
+    assert.match(booking.body.message, /already has a booking/);
+  }
+});
+
+test("simultaneous bookings return a conflict when the unique reservation index rejects one", async () => {
+  const reservationIndex = Booking.schema.indexes().find(([fields]) => fields.gigId === 1);
+  assert.equal(reservationIndex[1].unique, true);
+  assert.deepEqual(reservationIndex[1].partialFilterExpression, {
+    status: { $in: ["pending", "accepted", "in_progress"] }
+  });
+  Gig.findOne = async () => ({
+    _id: IDS.gig, freelancerId: IDS.freelancer, price: 1000,
+    location: { address: "Cape Town" }
+  });
+  Booking.create = async () => {
+    const error = new Error("duplicate key");
+    error.code = 11000;
+    throw error;
+  };
+
+  const response = await request({
+    path: "/api/bookings", method: "POST",
+    body: { gigId: IDS.gig, bookingDate: futureDate() },
+    headers: loginAs("Client", IDS.client)
+  });
+  assert.equal(response.status, 409);
+  assert.match(response.body.message, /already has a booking/);
+});
+
+test("completing a booking permanently marks its gig completed", async () => {
+  const booking = {
+    _id: IDS.booking, gigId: IDS.gig, clientId: IDS.client,
+    freelancerId: IDS.freelancer, status: "in_progress",
+    async save() { return this; }
+  };
+  Booking.findById = async () => booking;
+  let gigUpdate;
+  Gig.updateOne = async (filter, update) => { gigUpdate = { filter, update }; return { modifiedCount: 1 }; };
+  let transactionStatus;
+  Transaction.updateOne = async (_filter, update) => { transactionStatus = update.status; };
+
+  const response = await request({
+    path: `/api/bookings/${IDS.booking}/status`, method: "PATCH",
+    body: { status: "completed" },
+    headers: loginAs("Freelancer", IDS.freelancer)
+  });
+  assert.equal(response.status, 200);
+  assert.equal(booking.status, "completed");
+  assert.equal(transactionStatus, "completed");
+  assert.equal(gigUpdate.filter._id, IDS.gig);
+  assert.deepEqual(gigUpdate.update, { $set: { status: "completed", isActive: false } });
+});
+
+test("booking participants can view a completed gig while unrelated users cannot", async () => {
+  Gig.findOne = () => ({ populate: async () => ({
+    _id: IDS.gig, title: "Logo Design", status: "completed", isActive: false,
+    freelancerId: { _id: IDS.freelancer, name: "Alex" }
+  }) });
+  Booking.exists = async (filter) => filter.$or?.some(({ clientId }) => clientId === IDS.client)
+    ? { _id: IDS.booking } : null;
+
+  const path = `/api/gigs/history/${IDS.gig}`;
+  assert.equal((await request({ path })).status, 401);
+  assert.equal((await request({ path, headers: loginAs("Client", IDS.otherFreelancer) })).status, 403);
+  const client = await request({ path, headers: loginAs("Client", IDS.client) });
+  assert.equal(client.status, 200);
+  assert.equal(client.body.gig.status, "completed");
+  assert.equal((await request({ path, headers: loginAs("Freelancer", IDS.freelancer) })).status, 200);
+});
+
+test("completed gigs cannot be edited or deleted by their freelancer", async () => {
+  let updateFilter;
+  Gig.findOneAndUpdate = async (filter) => { updateFilter = filter; return null; };
+  const headers = loginAs("Freelancer", IDS.freelancer);
+  const edit = await request({
+    path: `/api/gigs/${IDS.gig}`, method: "PUT",
+    body: { ...validGig, status: "active" }, headers
+  });
+  assert.equal(edit.status, 404);
+  assert.deepEqual(updateFilter.status.$in, ["active", "paused"]);
+
+  const remove = await request({ path: `/api/gigs/${IDS.gig}`, method: "DELETE", headers });
+  assert.equal(remove.status, 404);
+  assert.equal(updateFilter.status.$ne, "completed");
+});
+
+test("previously completed bookings are synchronized to permanent gig status", async () => {
+  const { syncCompletedGigs } = require("../services/gigAvailability");
+  Booking.distinct = async (field, filter) => {
+    assert.equal(field, "gigId");
+    assert.deepEqual(filter, { status: "completed" });
+    return [IDS.gig];
+  };
+  let updated;
+  Gig.updateMany = async (filter, update) => { updated = { filter, update }; };
+  await syncCompletedGigs();
+  assert.deepEqual(updated.filter._id.$in, [IDS.gig]);
+  assert.deepEqual(updated.update, { $set: { status: "completed", isActive: false } });
 });
 
 test("a booking with an invalid gig ID or past date is rejected (400)", async () => {

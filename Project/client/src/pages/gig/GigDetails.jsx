@@ -4,25 +4,39 @@ import { useAuth } from "../../context/AuthContext";
 
 function GigDetails() {
     const { id } = useParams();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
+    const userRole = user?.role;
 
     const [gig, setGig] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [historical, setHistorical] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
+        if (authLoading) return;
         async function loadGig() {
             try {
                 setLoading(true);
                 setError("");
 
-                const response = await fetch(
+                let response = await fetch(
                     `${API_URL}/api/gigs/${id}`
                 );
 
+                let historyView = false;
+                if (response.status === 404 && userRole) {
+                    response = await fetch(`${API_URL}/api/gigs/history/${id}`, {
+                        credentials: "include"
+                    });
+                    historyView = response.ok;
+                }
+
                 if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error("You do not have access to this gig.");
+                    }
                     if (response.status === 404) {
                         throw new Error("Gig not found.");
                     }
@@ -33,6 +47,7 @@ function GigDetails() {
                 const data = await response.json();
 
                 setGig(data.gig || data);
+                setHistorical(historyView);
             } catch (err) {
                 console.error("Failed to load gig:", err);
                 setError(err.message);
@@ -42,7 +57,7 @@ function GigDetails() {
         }
 
         void loadGig();
-    }, [API_URL, id]);
+    }, [API_URL, id, userRole, authLoading]);
 
     if (loading) {
         return (
@@ -79,15 +94,21 @@ function GigDetails() {
     }
 
     const gigId = gig._id || gig.id;
+    const backTo = historical
+        ? userRole === "Freelancer" ? "/my-gigs" : userRole === "Admin" ? "/admin/gigs" : "/bookings"
+        : "/marketplace";
+    const backLabel = historical
+        ? userRole === "Freelancer" ? "My Gigs" : userRole === "Admin" ? "Gig Management" : "Bookings"
+        : "Marketplace";
 
     return (
         <main className="page-container">
 
             <Link
-                to="/marketplace"
+                to={backTo}
                 className="back-link"
             >
-                ← Back to Marketplace
+                ← Back to {backLabel}
             </Link>
 
             <div className="gig-details">
@@ -145,9 +166,13 @@ function GigDetails() {
                                 </span>
 
                                 <strong>
-                                    {gig.isActive
-                                        ? "Available"
-                                        : "Unavailable"}
+                                    {gig.status === "completed"
+                                        ? "Completed"
+                                        : gig.status === "paused"
+                                            ? "Paused"
+                                            : historical
+                                                ? "Booked"
+                                                : gig.isActive ? "Available" : "Unavailable"}
                                 </strong>
                             </div>
 
@@ -184,7 +209,9 @@ function GigDetails() {
                         </p>
                     </div>
 
-                    {!gig.isActive || gig.status !== "active" ? (
+                    {gig.status === "completed" ? (
+                        <p className="booking-notice">This gig is completed and cannot be booked again.</p>
+                    ) : historical || !gig.isActive || gig.status !== "active" ? (
                         <button
                             type="button"
                             disabled

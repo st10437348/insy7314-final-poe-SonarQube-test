@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import Bookings from '../pages/bookings/Bookings'
 import MyGigs from '../pages/gig/MyGigs'
+import GigDetails from '../pages/gig/GigDetails'
+import EditGig from '../pages/gig/EditGig'
 import Transactions from '../pages/transactions/Transactions'
 import { renderWithRouter } from '../test/testUtils'
 
@@ -57,6 +59,54 @@ describe('booking, gig and transaction pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(await screen.findByRole('heading', { name: 'No gigs yet' })).toBeInTheDocument()
     expect(fetchMock.mock.calls[1][1].method).toBe('DELETE')
+  })
+
+  it('shows completed gigs in My Gigs without edit or delete actions', async () => {
+    auth.role = 'Freelancer'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply({ gigs: [{
+      _id: 'g1', title: 'Finished Logo', category: 'Design',
+      status: 'completed', price: 500, deliveryDays: 3
+    }] })))
+    renderWithRouter(<MyGigs />, { route: '/my-gigs', path: '/my-gigs' })
+
+    expect(await screen.findByRole('heading', { name: 'Finished Logo' })).toBeInTheDocument()
+    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute('href', '/gigs/g1')
+    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+  })
+
+  it.each(['Client', 'Freelancer'])('%s can view a completed booked gig without a booking action', async (role) => {
+    auth.role = role
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce(reply({ gig: {
+        _id: 'g1', title: 'Finished Logo', description: 'Custom logo',
+        category: 'Design', price: 500, deliveryDays: 3,
+        status: 'completed', isActive: false
+      } }))
+    vi.stubGlobal('fetch', fetchMock)
+    renderWithRouter(<GigDetails />, { route: '/gigs/g1', path: '/gigs/:id' })
+
+    expect(await screen.findByRole('heading', { name: 'Finished Logo' })).toBeInTheDocument()
+    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText(/cannot be booked again/i)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Book This Gig' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls[1][0]).toContain('/api/gigs/history/g1')
+  })
+
+  it('does not render an edit form for a completed gig', async () => {
+    auth.role = 'Freelancer'
+    const fetchMock = vi.fn().mockResolvedValue(reply({ gig: {
+      _id: 'g1', title: 'Finished Logo', status: 'completed'
+    } }))
+    vi.stubGlobal('fetch', fetchMock)
+    renderWithRouter(<EditGig />, { route: '/gigs/g1/edit', path: '/gigs/:id/edit' })
+
+    expect(await screen.findByRole('heading', { name: 'Completed Gig' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View Gig' })).toHaveAttribute('href', '/gigs/g1')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('shows freelancer earnings and the transaction details', async () => {

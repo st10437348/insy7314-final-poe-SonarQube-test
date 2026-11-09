@@ -1,6 +1,7 @@
 require("dotenv").config({ path: require("path").resolve(__dirname, "../.env") });
 
 const connectDB = require("./config/database");
+const { syncCompletedGigs } = require("./services/gigAvailability");
 const app = require("./app");
 const { createHttpsServer } = require("./config/https");
 const { logEvent, flushLogs, isCloudLoggingEnabled } = require("./utils/logger");
@@ -18,6 +19,7 @@ const startServer = async () => {
 
     // Connect before accepting traffic so requests never use an unavailable database.
     await connectDB();
+    await syncCompletedGigs();
 
     await new Promise((resolve, reject) => {
       server.once("error", reject);

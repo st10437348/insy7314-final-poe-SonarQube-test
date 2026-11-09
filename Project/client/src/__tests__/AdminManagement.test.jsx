@@ -49,6 +49,7 @@ describe('admin management pages', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(screen.queryByText('Logo Design')).not.toBeInTheDocument())
     expect(fetchMock.mock.calls[2][1].method).toBe('DELETE')
+    expect(fetchMock.mock.calls[2][0]).toContain('/api/admin/gigs/g1')
   })
 
   it('disables and removes a user after confirmation', async () => {
@@ -67,6 +68,7 @@ describe('admin management pages', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(screen.queryByText('alex@example.com')).not.toBeInTheDocument())
     expect(fetchMock.mock.calls[2][1].method).toBe('DELETE')
+    expect(fetchMock.mock.calls[2][0]).toContain('/api/admin/users/u1')
   })
 
   it('changes a booking status and sends the chosen value to the API', async () => {

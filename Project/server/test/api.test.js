@@ -397,6 +397,30 @@ test("protected routes accept a valid JWT cookie for an authorised role", async 
   assert.deepEqual(response.body, []);
 });
 
+test("admin user deletion route deactivates an account and revokes its sessions", async () => {
+  const adminId = "507f1f77bcf86cd799439011";
+  const targetId = "507f1f77bcf86cd799439012";
+  let saved = false;
+  const target = {
+    _id: targetId, isActive: true, tokenVersion: 2,
+    async save() { saved = true; return this; }
+  };
+  User.findById = (id) => id === adminId
+    ? { select: async () => ({ _id: adminId, role: "Admin", isActive: true }) }
+    : Promise.resolve(id === targetId ? target : null);
+  const token = jwt.sign({ id: adminId, role: "Admin" }, process.env.JWT_SECRET);
+
+  const response = await request({
+    path: `/api/admin/users/${targetId}`, method: "DELETE",
+    headers: { Cookie: `token=${token}` }
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(saved, true);
+  assert.equal(target.isActive, false);
+  assert.equal(target.tokenVersion, 3);
+});
+
 test("a valid JWT for the wrong role receives 403 Forbidden", async () => {
   mockActiveUser("Client");
   const token = jwt.sign(

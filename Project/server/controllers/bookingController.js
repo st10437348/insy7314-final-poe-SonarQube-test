@@ -3,6 +3,7 @@ const Gig = require("../models/Gig");
 const Transaction = require("../models/Transaction");
 const mongoose = require("mongoose");
 const { logEvent } = require("../utils/logger");
+const { hasActiveBooking, completeGig } = require("../services/gigAvailability");
 
 const isParty = (booking, user) => user.role === "Admin" ||
   booking.clientId.toString() === user.id || booking.freelancerId.toString() === user.id;
@@ -24,14 +25,25 @@ exports.createBooking = async (req, res, next) => {
       logEvent("warn", "booking.create.rejected", req, { reason: "own_gig", gigId: gig._id });
       return res.status(403).json({ message: "You cannot book your own gig." });
     }
-    const booking = await Booking.create({
-      gigId: gig._id,
-      clientId: req.user.id,
-      freelancerId: gig.freelancerId,
-      location: gig.location,
-      agreedPrice: gig.price,
-      bookingDate: new Date(req.body.bookingDate)
-    });
+    if (await hasActiveBooking(gig._id)) {
+      logEvent("warn", "booking.create.rejected", req, { reason: "gig_booked", gigId: gig._id });
+      return res.status(409).json({ message: "This gig already has a booking." });
+    }
+    let booking;
+    try {
+      booking = await Booking.create({
+        gigId: gig._id,
+        clientId: req.user.id,
+        freelancerId: gig.freelancerId,
+        location: gig.location,
+        agreedPrice: gig.price,
+        bookingDate: new Date(req.body.bookingDate)
+      });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      logEvent("warn", "booking.create.rejected", req, { reason: "gig_booked", gigId: gig._id });
+      return res.status(409).json({ message: "This gig already has a booking." });
+    }
     try {
       const amount = Math.round(gig.price * 100) / 100;
       const platformFee = Math.round(amount * 0.1 * 100) / 100;
@@ -124,6 +136,7 @@ exports.updateBookingStatus = async (req, res, next) => {
     if (status === "completed") booking.completedAt = new Date();
     await booking.save();
     logEvent("info", "booking.status.changed", req, { bookingId: booking._id, from: previousStatus, to: status });
+    if (status === "completed") await completeGig(booking.gigId);
     if (status === "cancelled" || status === "completed") {
       const transactionStatus = status === "completed" ? "completed" : "refunded";
       await Transaction.updateOne({ bookingId: booking._id },

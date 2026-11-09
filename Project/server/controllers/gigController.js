@@ -1,4 +1,6 @@
 const Gig = require("../models/Gig");
+const Booking = require("../models/Booking");
+const { unavailableGigIds, hasActiveBooking } = require("../services/gigAvailability");
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // @desc    Get all active gigs (with search, category, and price filters)
@@ -9,7 +11,8 @@ exports.getGigs = async (req, res, next) => {
 
     // Start with fixed field names. Only scalar, validated values are added to
     // the query builder; request objects never become MongoDB filters.
-    let query = Gig.find({ status: "active", isActive: true });
+    const bookedIds = await unavailableGigIds();
+    let query = Gig.find({ status: "active", isActive: true, _id: { $nin: bookedIds } });
 
     if (typeof search === "string" && search.trim()) {
       const safePattern = new RegExp(escapeRegex(search.trim().slice(0, 80)), "i");
@@ -39,6 +42,9 @@ exports.getGigs = async (req, res, next) => {
 // @route   GET /api/gigs/:id
 exports.getGigById = async (req, res, next) => {
   try {
+    if (await hasActiveBooking(req.params.id)) {
+      return res.status(404).json({ message: "Gig not found" });
+    }
     const gig = await Gig.findOneAndUpdate(
       { _id: req.params.id, status: "active", isActive: true },
       { $inc: { views: 1 } },
@@ -53,6 +59,28 @@ exports.getGigById = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// Booking participants and the gig owner can still view non-public gig details.
+exports.getGigHistory = async (req, res, next) => {
+  try {
+    const gig = await Gig.findOne({
+      _id: req.params.id,
+      status: { $ne: "deleted" }
+    }).populate("freelancerId", "name profilePicture bio location rating");
+    if (!gig) return res.status(404).json({ message: "Gig not found." });
+
+    const ownerId = String(gig.freelancerId?._id || gig.freelancerId);
+    if (req.user.role !== "Admin" && ownerId !== req.user.id) {
+      const booking = await Booking.exists({
+        gigId: gig._id,
+        $or: [{ clientId: req.user.id }, { freelancerId: req.user.id }]
+      });
+      if (!booking) return res.status(403).json({ message: "Access denied." });
+    }
+
+    res.status(200).json({ success: true, gig });
+  } catch (error) { next(error); }
 };
 
 // A freelancer can load their own paused gig for editing without exposing it publicly.
@@ -112,7 +140,7 @@ exports.updateGig = async (req, res, next) => {
   try {
     const { title, description, category, price, deliveryDays, location, imageUrl, status } = req.body;
     const gig = await Gig.findOneAndUpdate(
-      { _id: req.params.id, freelancerId: req.user.id, status: { $ne: "deleted" } },
+      { _id: req.params.id, freelancerId: req.user.id, status: { $in: ["active", "paused"] } },
       { title, description, category, price, deliveryDays, location,
         imageUrl: imageUrl || "", status, isActive: status !== "paused" },
       { new: true, runValidators: true }
@@ -133,7 +161,7 @@ exports.updateGig = async (req, res, next) => {
 exports.deleteGig = async (req, res, next) => {
   try {
     const gig = await Gig.findOneAndUpdate(
-      { _id: req.params.id, freelancerId: req.user.id },
+      { _id: req.params.id, freelancerId: req.user.id, status: { $ne: "completed" } },
       { status: "deleted", isActive: false }, { new: true }
     );
 
