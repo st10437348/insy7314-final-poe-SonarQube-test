@@ -411,6 +411,10 @@ docker compose up --build --wait
 docker compose ps
 ```
 
+![Docker Desktop showing the local MongoDB, API and client containers](Screenshots/part3-docker-desktop-stack.png)
+
+![Local docker compose ps output showing the API, client and MongoDB services healthy](Screenshots/part3-docker-compose-ps-healthy.png)
+
 Open `https://localhost:5173`. The following requests check both the frontend and the proxied API:
 
 ```powershell
@@ -441,9 +445,7 @@ Choose 8–128 characters with uppercase, lowercase, a number and one of `@$!%*?
 
 The required `containers` job in [CI and static analysis](.github/workflows/ci.yml) creates an isolated JWT secret on its Ubuntu runner, validates the Compose file, builds both application images, and runs the stack until all three health checks pass. It then requests the backend directly, requests the frontend's `/login` route, and requests `/api/test` through the Nginx proxy. A failed build, unhealthy container or failed HTTP request fails the job. Container status and logs are uploaded as the `docker-compose-evidence` artifact even on failure; the job then removes its disposable containers and database volume. The final `ci-result` check requires this job to succeed alongside the other required jobs. This pipeline builds and runs the containers; it does not deploy them.
 
-[Screenshot: GitHub Actions `containers` job showing the two application containers and MongoDB healthy, with the HTTP smoke checks passing.]
-
-[Screenshot: `docker compose ps` showing the `api`, `client` and `mongo` services running and healthy.]
+![Classroom50 Docker Compose smoke test showing healthy containers and completed verification steps](Screenshots/part3-ci-docker-compose-smoke-passed.png)
 
 
 ## Security Review Report
