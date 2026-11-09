@@ -1,0 +1,4 @@
+NAME                                                       IMAGE                                                    COMMAND                  SERVICE   CREATED          STATUS                    PORTS
+insy7314-2026-insy7314-poe-classroom-st10437348-api-1      insy7314-2026-insy7314-poe-classroom-st10437348-api      "docker-entrypoint.s…"   api       17 seconds ago   Up 11 seconds (healthy)   127.0.0.1:5000->5000/tcp
+insy7314-2026-insy7314-poe-classroom-st10437348-client-1   insy7314-2026-insy7314-poe-classroom-st10437348-client   "/docker-entrypoint.…"   client    17 seconds ago   Up 5 seconds (healthy)    80/tcp, 127.0.0.1:5173->443/tcp
+insy7314-2026-insy7314-poe-classroom-st10437348-mongo-1    mongo:7                                                  "docker-entrypoint.s…"   mongo     17 seconds ago   Up 17 seconds (healthy)   27017/tcp
